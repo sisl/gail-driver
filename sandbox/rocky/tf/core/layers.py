@@ -19,14 +19,14 @@ class G(object):
 G._n_layers = 0
 
 
-def create_param(spec, shape, name, trainable=True, regularizable=True):
+def create_param(spec, shape, name, trainable=True, regularizable=True, regularizer= None):
     if not hasattr(spec, '__call__'):
         assert isinstance(spec, (tf.Tensor, tf.Variable))
         return spec
     assert hasattr(spec, '__call__')
     if regularizable:
         # use the default regularizer
-        regularizer = None
+        regularizer = regularizer
     else:
         # do not regularize this variable
         regularizer = lambda _: tf.constant(0.)
@@ -374,21 +374,28 @@ class OpLayer(MergeLayer):
         return self.op(*inputs)
 
 
-class DenseLayer(Layer):
+class BayesLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
                  **kwargs):
-        super(DenseLayer, self).__init__(incoming, **kwargs)
+        """
+        Warning: Think carefully about the 'regularizable' keyword.
+        """
+        super(BayesLayer, self).__init__(incoming, **kwargs)
         self.nonlinearity = tf.identity if nonlinearity is None else nonlinearity
 
         self.num_units = num_units
 
         num_inputs = int(np.prod(self.input_shape[1:]))
 
-        self.W = self.add_param(W, (num_inputs, num_units), name="W")
+        self.W_rho = self.add_param(W, (num_inputs, num_units), name="W_rho")
+        self.W_mu = self.add_param(W, (num_inputs, num_units), name="W_mu")
+        
         if b is None:
-            self.b = None
+            self.b_rho = None
+            self.b_mu = None
         else:
-            self.b = self.add_param(b, (num_units,), name="b", regularizable=False)
+            self.b_rho = self.add_param(b, (num_units,), name="b_rho", regularizable=False)
+            self.b_mu = self.add_param(b, (num_units,), name="b_mu", regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -402,6 +409,47 @@ class DenseLayer(Layer):
         if self.b is not None:
             activation = activation + tf.expand_dims(self.b, 0)
         return self.nonlinearity(activation)
+
+class DenseLayer(Layer):
+    def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
+                 **kwargs):
+        super(DenseLayer, self).__init__(incoming, **kwargs)
+        self.nonlinearity = tf.identity if nonlinearity is None else nonlinearity
+
+        self.num_units = num_units
+
+        num_inputs = int(np.prod(self.input_shape[1:]))
+
+        self.W = self.add_param(W, (num_inputs, num_units), name="W", regularizer= tf.nn.l2_loss)
+        if b is None:
+            self.b = None
+        else:
+            self.b = self.add_param(b, (num_units,), name="b", regularizable=False)
+
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], self.num_units)
+
+    def get_output_for(self, input, **kwargs):
+        """
+        input: a tensor
+        """
+        activation = self.get_logits_for(input, **kwargs)
+        return self.nonlinearity(activation)
+    
+    def get_logits_for(self, input, **kwargs):
+        """
+        Directly compute this layer's output tensor (pre-activation) for input tensor.
+        
+        input: a tensor
+        """
+        if input.get_shape().ndims > 2:
+            # if the input has more than two dimensions, flatten it into a
+            # batch of feature vectors.
+            input = tf.reshape(input, tf.pack([tf.shape(input)[0], -1]))
+        activation = tf.matmul(input, self.W)
+        if self.b is not None:
+            activation = activation + tf.expand_dims(self.b, 0)
+        return activation       
 
 
 class BaseConvLayer(Layer):
@@ -1751,6 +1799,9 @@ class ElemwiseSumLayer(MergeLayer):
 
 
 def get_output(layer_or_layers, inputs=None, **kwargs):
+    """
+    Forward pass through entire computational graph, returning activations at specified layer.
+    """
     # track accepted kwargs used by get_output_for
     accepted_kwargs = {'deterministic'}
     # obtain topological ordering of all layers the output layer(s) depend on

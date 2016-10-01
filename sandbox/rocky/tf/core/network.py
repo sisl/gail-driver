@@ -75,8 +75,115 @@ class MLP(LayersPowered, Serializable):
 
     @property
     def output(self):
+        """
+        returns output tensor.
+        """
         return self._output
+    
+    #@property
+    #def logits(self):
+        #"""
+        #returns output tensor.
+        #"""
+        #x = L.get_output(self._layers[-2])
+        #return self.output_layer.get_logits_for(x)
+    def predict(self, X):
+        feed = {self.input_var: X}
+        sess = tf.get_default_session()
+        
+        #out_tensor = L.get_output(self._l_out, inputs= [X])
+        
+        if self.output_layer.nonlinearity == tf.nn.softmax:
+            y_p = tf.argmax(self._output,1)
+        else:
+            raise NotImplementedError
+        
+        Y_p = sess.run(y_p, feed)
+        return Y_p        
+        
+    
+    def loss(self, y, reg= 0.0):
+        if self.output_layer.nonlinearity == tf.nn.softmax:
+            logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
+            loss = tf.reduce_mean(
+                tf.nn.sparse_softmax_cross_entropy_with_logits(logits, tf.squeeze(y))
+                )            
+        else:
+            raise NotImplementedError
+        
+        reg_loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        return loss + reg_loss
+    
+    
+class BayesMLP(LayersPowered, Serializable):
+    def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
+                 output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
+                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
+                 input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
+                 ):
 
+        Serializable.quick_init(self, locals())
+
+        with tf.variable_scope(name):
+            if input_layer is None:
+                l_in = L.InputLayer(shape=(None,) + input_shape, input_var=input_var, name="input")
+            else:
+                l_in = input_layer
+            self._layers = [l_in]
+            l_hid = l_in
+            if batch_normalization:
+                l_hid = L.batch_norm(l_hid)
+            for idx, hidden_size in enumerate(hidden_sizes):
+                l_hid = L.BayesLayer(
+                    l_hid,
+                    num_units=hidden_size,
+                    nonlinearity=hidden_nonlinearity,
+                    name="hidden_%d" % idx,
+                    W=hidden_W_init,
+                    b=hidden_b_init,
+                    weight_normalization=weight_normalization
+                )
+                if batch_normalization:
+                    l_hid = L.batch_norm(l_hid)
+                self._layers.append(l_hid)
+            l_out = L.BayesLayer(
+                l_hid,
+                num_units=output_dim,
+                nonlinearity=output_nonlinearity,
+                name="output",
+                W=output_W_init,
+                b=output_b_init,
+                weight_normalization=weight_normalization
+            )
+            if batch_normalization:
+                l_out = L.batch_norm(l_out)
+            self._layers.append(l_out)
+            self._l_in = l_in
+            self._l_out = l_out
+            # self._input_var = l_in.input_var
+            self._output = L.get_output(l_out)
+
+            LayersPowered.__init__(self, l_out)
+
+    @property
+    def input_layer(self):
+        return self._l_in
+
+    @property
+    def output_layer(self):
+        return self._l_out
+
+    @property
+    def input_var(self):
+        return self._l_in.input_var
+
+    @property
+    def layers(self):
+        return self._layers
+
+    @property
+    def output(self):
+        return self._output
 
 class ConvNetwork(LayersPowered, Serializable):
     def __init__(self, name, input_shape, output_dim,

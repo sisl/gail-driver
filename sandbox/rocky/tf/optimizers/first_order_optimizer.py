@@ -84,7 +84,8 @@ class FirstOrderOptimizer(Serializable):
             extra_inputs = tuple()
         return self._opt_fun["f_loss"](*(tuple(inputs) + extra_inputs))
 
-    def optimize(self, inputs, extra_inputs=None, callback=None):
+    def optimize(self, inputs, extra_inputs=None, callback=None,
+                 val_inputs= None, val_extra_inputs= None):
 
         if len(inputs) == 0:
             # Assumes that we should always sample mini-batches
@@ -117,23 +118,29 @@ class FirstOrderOptimizer(Serializable):
                 if progbar.active:
                     progbar.stop()
 
-            new_loss = f_loss(*(tuple(inputs) + extra_inputs))
+            train_loss = f_loss(*(tuple(inputs) + extra_inputs))
+            if val_inputs is not None and val_extra_inputs is not None:
+                val_loss = f_loss(*(tuple(val_inputs) + val_extra_inputs))
+            else:
+                val_loss = None
 
             if self._verbose:
-                logger.log("Epoch: %d | Loss: %f" % (epoch, new_loss))
+                logger.log("Epoch: %d | Loss: %f" % (epoch, train_loss))
             if self._callback or callback:
                 elapsed = time.time() - start_time
                 callback_args = dict(
-                    loss=new_loss,
+                    loss=train_loss,
                     params=self._target.get_param_values(trainable=True) if self._target else None,
                     itr=epoch,
                     elapsed=elapsed,
                 )
+                if val_loss is not None:
+                    callback_args.update({'val_loss': val_loss})
                 if self._callback:
                     self._callback(callback_args)
                 if callback:
                     callback(**callback_args)
 
-            if abs(last_loss - new_loss) < self._tolerance:
+            if abs(last_loss - train_loss) < self._tolerance:
                 break
-            last_loss = new_loss
+            last_loss = train_loss
