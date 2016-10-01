@@ -54,17 +54,34 @@ def permute_and_split(X, Y, n_total= 0, n_val= 0):
 
 class Visualizer(object):
     def __init__(self):
-        self.tloss = []
-        self.vloss = []
+        self.tloss = {}
+        self.vloss = {}
+        
+        self.curr_model= ''
+        
+    def add_model(self, model_name):
+        if not self.tloss.has_key(model_name):
+            self.tloss[model_name]= []
+            self.vloss[model_name]= []
+        else:
+            print("Warning: model already exists in visualizer.")
+            
+        self.curr_model= model_name
         
     def append_data(self, loss, params, itr, elapsed, val_loss= None, verbose= True):
         if verbose:
             print("Epoch: {} == Loss: {} == Val Loss: {}".format(itr,loss,val_loss))
-        self.tloss.append(loss)
-        self.vloss.append(val_loss)
+        self.tloss[self.curr_model].append(loss)
+        self.vloss[self.curr_model].append(val_loss)
         
     def plot(self):
-        f, ax = plt.subplots(1,1)
-        ax.plot(self.tloss,'b')
-        ax.plot(self.vloss,'r')
+        names= self.tloss.keys()
+        f, axs = plt.subplots(1,len(names))
+        if not hasattr(axs,'__iter__'):
+            axs= [axs]
+        for name, ax in zip(names, axs):
+            ax.set_title(name)
+            
+            ax.plot(self.tloss[name],'b')            
+            ax.plot(self.vloss[name],'r')
         plt.show()
