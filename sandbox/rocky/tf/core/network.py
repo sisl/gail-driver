@@ -6,7 +6,6 @@ from rllab.core.serializable import Serializable
 from sandbox.rocky.tf.core.parameterized import Parameterized
 from sandbox.rocky.tf.core.layers_powered import LayersPowered
 
-
 class MLP(LayersPowered, Serializable):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
@@ -15,6 +14,7 @@ class MLP(LayersPowered, Serializable):
                  ):
 
         Serializable.quick_init(self, locals())
+        self.name= name
 
         with tf.variable_scope(name):
             if input_layer is None:
@@ -91,8 +91,6 @@ class MLP(LayersPowered, Serializable):
         feed = {self.input_var: X}
         sess = tf.get_default_session()
         
-        #out_tensor = L.get_output(self._l_out, inputs= [X])
-        
         if self.output_layer.nonlinearity == tf.nn.softmax:
             y_p = tf.argmax(self._output,1)
         else:
@@ -120,9 +118,11 @@ class BayesMLP(LayersPowered, Serializable):
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
                  input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
+                 approximate_kl= True,
                  ):
 
         Serializable.quick_init(self, locals())
+        self.name= name
 
         with tf.variable_scope(name):
             if input_layer is None:
@@ -141,7 +141,8 @@ class BayesMLP(LayersPowered, Serializable):
                     name="hidden_%d" % idx,
                     W=hidden_W_init,
                     b=hidden_b_init,
-                    weight_normalization=weight_normalization
+                    weight_normalization=weight_normalization,
+                    approximate_kl= approximate_kl
                 )
                 if batch_normalization:
                     l_hid = L.batch_norm(l_hid)
@@ -153,7 +154,8 @@ class BayesMLP(LayersPowered, Serializable):
                 name="output",
                 W=output_W_init,
                 b=output_b_init,
-                weight_normalization=weight_normalization
+                weight_normalization=weight_normalization,
+                approximate_kl= approximate_kl
             )
             if batch_normalization:
                 l_out = L.batch_norm(l_out)
@@ -184,6 +186,32 @@ class BayesMLP(LayersPowered, Serializable):
     @property
     def output(self):
         return self._output
+    
+    
+    def predict(self, X):
+        feed = {self.input_var: X}
+        sess = tf.get_default_session()
+        
+        if self.output_layer.nonlinearity == tf.nn.softmax:
+            y_p = tf.argmax(self._output,1)
+        else:
+            raise NotImplementedError
+        
+        Y_p = sess.run(y_p, feed)
+        return Y_p        
+        
+    
+    def loss(self, y, reg= 0.0):
+        if self.output_layer.nonlinearity == tf.nn.softmax:
+            logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
+            loss = tf.reduce_mean(
+                tf.nn.sparse_softmax_cross_entropy_with_logits(logits, tf.squeeze(y))
+                )            
+        else:
+            raise NotImplementedError
+        
+        reg_loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        return loss + reg_loss    
 
 class ConvNetwork(LayersPowered, Serializable):
     def __init__(self, name, input_shape, output_dim,

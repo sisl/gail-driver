@@ -11,6 +11,8 @@ from inspect import getargspec
 from difflib import get_close_matches
 from warnings import warn
 
+from sandbox.rocky.tf.core import gaussian_kl_regularizer, approx_kl_regularizer
+
 
 class G(object):
     pass
@@ -376,6 +378,7 @@ class OpLayer(MergeLayer):
 
 class BayesLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
+                 approximate_kl= False,
                  **kwargs):
         """
         Warning: Think carefully about the 'regularizable' keyword.
@@ -386,21 +389,37 @@ class BayesLayer(Layer):
         self.num_units = num_units
 
         num_inputs = int(np.prod(self.input_shape[1:]))
-
-        self.W_rho = self.add_param(W, (num_inputs, num_units), name="W_rho")
-        self.W_mu = self.add_param(W, (num_inputs, num_units), name="W_mu")
+        
+        if not approximate_kl:
+            self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= gaussian_kl_regularizer)
+        else:
+            self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= approx_kl_regularizer)
+            
+        self.W_mu, self.W_rho = tf.split(1, 2, self.W_theta, name='mu_and_rho')
+        
+        self.W = self.W_mu + tf.log(1.0 + tf.exp(self.W_rho)) * tf.random_normal(self.W_mu.get_shape())
         
         if b is None:
-            self.b_rho = None
-            self.b_mu = None
+            self.b = None
         else:
-            self.b_rho = self.add_param(b, (num_units,), name="b_rho", regularizable=False)
-            self.b_mu = self.add_param(b, (num_units,), name="b_mu", regularizable=False)
+            self.b = self.add_param(b, (num_units,), name="b", regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
-
+    
     def get_output_for(self, input, **kwargs):
+        """
+        input: a tensor
+        """
+        activation = self.get_logits_for(input, **kwargs)
+        return self.nonlinearity(activation)
+    
+    def get_logits_for(self, input, **kwargs):
+        """
+        Directly compute this layer's output tensor (pre-activation) for input tensor.
+        
+        input: a tensor
+        """
         if input.get_shape().ndims > 2:
             # if the input has more than two dimensions, flatten it into a
             # batch of feature vectors.
@@ -408,7 +427,7 @@ class BayesLayer(Layer):
         activation = tf.matmul(input, self.W)
         if self.b is not None:
             activation = activation + tf.expand_dims(self.b, 0)
-        return self.nonlinearity(activation)
+        return activation    
 
 class DenseLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
