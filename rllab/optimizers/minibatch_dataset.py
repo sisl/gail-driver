@@ -30,7 +30,10 @@ class BatchDataset(object):
                 batch_end = (itr + 1) * self._batch_size
                 batch_ids = self._ids[batch_start:batch_end]
                 batch = [d[batch_ids] for d in self._inputs]
-                yield list(batch) + list(self._extra_inputs)
+                
+                extra_batch = [d[batch_ids] for d in self._extra_inputs]
+                
+                yield list(batch) + list(extra_batch)
             if update:
                 self.update()
 
