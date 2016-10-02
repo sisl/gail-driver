@@ -1,4 +1,4 @@
-from sandbox.rocky.tf.core.network import MLP, BayesMLP
+from sandbox.rocky.tf.core.network import MLP, BayesMLP, LatentMLP
 import tensorflow as tf
 import numpy as np
 import argparse
@@ -21,6 +21,7 @@ parser.add_argument('--reg',type=float,default=0.0)
 parser.add_argument('--classif',type=bool,default= False)
 parser.add_argument('--regress',type=bool,default= False)
 parser.add_argument('--one_hot',type=bool,default= True)
+parser.add_argument('--batch_size',type=int,default= 20)
 
 args = parser.parse_args()
 
@@ -45,14 +46,17 @@ elif args.regress:
     
     y = tf.placeholder(dtype=tf.float32, shape= [None, O], name='labels')
     
-mlp = MLP('mlp', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,)) # 0.884 - 0.72
+#mlp = MLP('mlp', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,)) # 0.884 - 0.72
 
-bmlp_1 = BayesMLP('bmlp_1', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':True,'empirical':0,'samples':1}) # 0.702 - 0.64
-bmlp_2 = BayesMLP('bmlp_2', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':False,'muldiag':True,'empirical':0,'samples':1}) # 0.674 - 0.74
-bmlp_3 = BayesMLP('bmlp_3', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':True,'empirical':10,'samples':1}) # 0.718 - 0.57
-bmlp_4 = BayesMLP('bmlp_4', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':False,'empirical':10,'samples':1}) # 0.712 - 0.77
+#bmlp_1 = BayesMLP('bmlp_1', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':True,'empirical':0,'samples':1}) # 0.702 - 0.64
+#bmlp_2 = BayesMLP('bmlp_2', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':False,'muldiag':True,'empirical':0,'samples':1}) # 0.674 - 0.74
+#bmlp_3 = BayesMLP('bmlp_3', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':True,'empirical':10,'samples':1}) # 0.718 - 0.57
+#bmlp_4 = BayesMLP('bmlp_4', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':False,'empirical':10,'samples':1}) # 0.712 - 0.77
 
-models= [mlp, bmlp_1, bmlp_2, bmlp_3, bmlp_4]
+H_SPEC = [('dense',H/2),('latent',5),('dense',H/2)]
+lmlp_1 = LatentMLP('llmlp_1', O, H_SPEC, tf.nn.tanh, output_nonlinearity, batch_size= args.batch_size, input_shape= (M,), reg_params={'approx':True,'muldiag':True,'empirical':0,'samples':1})
+
+models= [lmlp_1]
 
 viz = Visualizer()
 
@@ -62,7 +66,7 @@ for model in models:
     x = model.input_var    
     viz.add_model(model.name)
     
-    optimizer = FOO(max_epochs= args.epochs, tolerance= 1e-6, sgvb= True)    
+    optimizer = FOO(max_epochs= args.epochs, batch_size=args.batch_size, tolerance= 1e-6, sgvb= True)    
     optimizer.update_opt(model.loss(y, reg= args.reg), model, [x], extra_inputs= [y],
                          like_loss= model.likelihood_loss(y),
                          cmpx_loss= model.complexity_loss(args.reg))

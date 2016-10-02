@@ -92,8 +92,7 @@ class Visualizer(object):
         names= self.tloss.keys()
         f, axs = plt.subplots(2,len(names))
         if axs.ndim == 1:
-            #axs= axs[None,...]
-            raise NotImplementedError
+            axs= axs[...,None]
         
         for name, col in zip(names, axs.transpose()):
             ax1, ax2 = col[0], col[1]
