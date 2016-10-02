@@ -10,6 +10,20 @@ class NeuralNetwork(object):
     #def __init__(self):
         #pass
     
+    def _predict(self, t, X):
+        sess = tf.get_default_session()
+        
+        N, _ = X.shape
+        B = self.input_var.get_shape()[0].value
+        
+        if B is None or B == N:
+            pred = sess.run(t, {self.input_var: X})
+        else:
+            pred = [sess.run(t, {self.input_var: X[i:i+B]}) for i in range(0,N,B)]
+            pred = np.row_stack(pred)
+            
+        return pred
+    
     def likelihood_loss(self, y):
         if self.output_layer.nonlinearity == tf.nn.softmax:
             logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
@@ -20,17 +34,17 @@ class NeuralNetwork(object):
         elif self.output_layer.nonlinearity == tf.identity:
             outputs = self.output_layer.get_output_for(L.get_output(self._layers[-2]))
             loss = tf.reduce_mean(
-                0.5 * tf.square(outputs - y)
+                0.5 * tf.square(outputs - y), name='like_loss'
             )
         
         return loss
     
     def complexity_loss(self, reg):
-        loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES),name='cmpx_loss')
         return loss
     
     def loss(self, y, reg= 0.0):
-        return self.likelihood_loss(y) + self.complexity_loss(reg)
+        return tf.add(self.likelihood_loss(y), self.complexity_loss(reg),name= 'loss')
     
     @property
     def input_layer(self):
@@ -57,15 +71,13 @@ class DeterministicNetwork(NeuralNetwork):
         #pass
     
     def predict(self, X):
-        feed = {self.input_var: X}
-        sess = tf.get_default_session()
         
         if self.output_layer.nonlinearity == tf.nn.softmax:
             y_p = tf.argmax(self._output,1)
         else:
             y_p = self._output      
         
-        Y_p = sess.run(y_p, feed)
+        Y_p = self._predict(y_p, X)
         return Y_p
     
 class StochasticNetwork(NeuralNetwork):
@@ -73,14 +85,12 @@ class StochasticNetwork(NeuralNetwork):
         #pass
     
     def predict(self, X, k= 1):
-        feed = {self.input_var: X}
         sess = tf.get_default_session()
         
         o_p= []
         for _ in range(k):
-            o_p.append(
-                sess.run(self._output, feed)
-            )
+
+            o_p.append(self._predict(self._output, X))
             o_p = np.concatenate([o[None,...] for o in o_p], axis= 0)
             mu_p = np.mean(o_p,axis= 0)
             std_p = np.std(o_p,axis= 0)
@@ -96,7 +106,7 @@ class StochasticNetwork(NeuralNetwork):
 class MLP(LayersPowered, Serializable, DeterministicNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
-                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
+                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer, batch_size=None,
                  input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
                  ):
 
@@ -105,7 +115,7 @@ class MLP(LayersPowered, Serializable, DeterministicNetwork):
 
         with tf.variable_scope(name):
             if input_layer is None:
-                l_in = L.InputLayer(shape=(None,) + input_shape, input_var=input_var, name="input")
+                l_in = L.InputLayer(shape=(batch_size,) + input_shape, input_var=input_var, name="input")
             else:
                 l_in = input_layer
             self._layers = [l_in]
@@ -183,7 +193,7 @@ class MLP(LayersPowered, Serializable, DeterministicNetwork):
 class BayesMLP(LayersPowered, Serializable, StochasticNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
-                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
+                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer, batch_size=None,
                  input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
                  reg_params= {},
                  ):
@@ -193,7 +203,7 @@ class BayesMLP(LayersPowered, Serializable, StochasticNetwork):
 
         with tf.variable_scope(name):
             if input_layer is None:
-                l_in = L.InputLayer(shape=(None,) + input_shape, input_var=input_var, name="input")
+                l_in = L.InputLayer(shape=(batch_size,) + input_shape, input_var=input_var, name="input")
             else:
                 l_in = input_layer
             self._layers = [l_in]
@@ -238,7 +248,7 @@ class BayesMLP(LayersPowered, Serializable, StochasticNetwork):
 class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
     def __init__(self, name, output_dim, hidden_spec, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
-                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
+                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer, batch_size=None,
                  input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
                  reg_params= {},
                  ):
@@ -248,7 +258,7 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
 
         with tf.variable_scope(name):
             if input_layer is None:
-                l_in = L.InputLayer(shape=(None,) + input_shape, input_var=input_var, name="input")
+                l_in = L.InputLayer(shape=(batch_size,) + input_shape, input_var=input_var, name="input")
             else:
                 l_in = input_layer
             self._layers = [l_in]

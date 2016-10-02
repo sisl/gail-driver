@@ -105,7 +105,10 @@ class FirstOrderOptimizer(Serializable):
         if len(inputs) == 0:
             # Assumes that we should always sample mini-batches
             raise NotImplementedError
+        
+        assert len(inputs) == 1
 
+        dataset_size, _ = inputs[0].shape
         f_loss = self._opt_fun["f_loss"]
         
         # Plot individual costs from complexity / likelihood terms.
@@ -123,11 +126,13 @@ class FirstOrderOptimizer(Serializable):
         if extra_inputs is None:
             extra_inputs = tuple()
 
-        last_loss = f_loss(*(tuple(inputs) + extra_inputs))
+        #last_loss = f_loss(*(tuple(inputs) + extra_inputs))
 
         start_time = time.time()
 
-        dataset = BatchDataset(inputs, self._batch_size, extra_inputs=extra_inputs)
+        train_dataset = BatchDataset(inputs, self._batch_size, extra_inputs=extra_inputs)
+        if val_inputs is not None:
+            val_dataset = BatchDataset(val_inputs, self._batch_size, extra_inputs= val_extra_inputs)
 
         sess = tf.get_default_session()
 
@@ -136,24 +141,35 @@ class FirstOrderOptimizer(Serializable):
                 logger.log("Epoch %d" % (epoch))
                 progbar = pyprind.ProgBar(len(inputs[0]))
 
-            for batch in dataset.iterate(update=True):
+            train_losses= []
+            train_c_losses, train_l_losses = [], []
+            for t, batch in enumerate(train_dataset.iterate(update=True)): # batch is a (matrix X, matrix Y) tuple
                 sess.run(self._train_op, dict(list(zip(self._input_vars, batch))))
+                train_losses.append(f_loss(*batch))
+                train_c_losses.append(c_loss(*batch))
+                train_l_losses.append(l_loss(*batch))
+                
                 if self._verbose:
                     progbar.update(len(batch[0]))
+                    
+            train_loss = sum(train_losses)
+            train_c_loss = sum(train_c_losses)
+            train_l_loss = sum(train_l_losses)
             
+            val_losses= []
+            if val_inputs is not None:
+                for t, batch in enumerate(val_dataset.iterate(update= True)):
+                    val_losses.append(f_loss(*batch))
+                    
+                val_loss = sum(val_losses)
+                                
             for interval, op in self._update_priors_ops:
                 if interval != 0 and epoch % interval == 0:
                     sess.run(op)
             
             if self._verbose:
                 if progbar.active:
-                    progbar.stop()
-
-            train_loss = f_loss(*(tuple(inputs) + extra_inputs))
-            if val_inputs is not None and val_extra_inputs is not None:
-                val_loss = f_loss(*(tuple(val_inputs) + val_extra_inputs))
-            else:
-                val_loss = None            
+                    progbar.stop()           
 
             if self._verbose:
                 logger.log("Epoch: %d | Loss: %f" % (epoch, train_loss))
@@ -166,10 +182,8 @@ class FirstOrderOptimizer(Serializable):
                     elapsed=elapsed,
                 )
                 if use_c_loss:
-                    train_c_loss = c_loss(*(tuple(inputs) + extra_inputs))                    
                     callback_args['c_loss'] = train_c_loss
                 if use_l_loss:
-                    train_l_loss = l_loss(*(tuple(inputs) + extra_inputs))                    
                     callback_args['l_loss'] = train_l_loss                    
                     
                 if val_loss is not None:
@@ -179,6 +193,6 @@ class FirstOrderOptimizer(Serializable):
                 if callback:
                     callback(**callback_args)
 
-            if abs(last_loss - train_loss) < self._tolerance:
-                break
-            last_loss = train_loss
+            #if abs(last_loss - train_loss) < self._tolerance:
+                #break
+            #last_loss = train_loss

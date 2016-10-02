@@ -473,13 +473,14 @@ class LatentLayer(Layer):
         
         input: a tensor
         """
+        batch_size = input.get_shape()[0].value
         if input.get_shape().ndims > 2:
             # if the input has more than two dimensions, flatten it into a
             # batch of feature vectors.
             input = tf.reshape(input, tf.pack([tf.shape(input)[0], -1]))
 
         Z_mu, Z_sig = tf.matmul(input,self.W_mu), tf.log(1.0 + tf.exp(tf.matmul(input,self.W_rho)))
-        activation = Z_mu + Z_sig * tf.random_normal([-1,self.num_units])
+        activation = Z_mu + Z_sig * tf.random_normal([batch_size,self.num_units])
         if self.b is not None:
             activation = activation + tf.expand_dims(self.b, 0)
         return activation
