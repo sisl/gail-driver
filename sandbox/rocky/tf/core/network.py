@@ -6,7 +6,31 @@ from rllab.core.serializable import Serializable
 from sandbox.rocky.tf.core.parameterized import Parameterized
 from sandbox.rocky.tf.core.layers_powered import LayersPowered
 
-class MLP(LayersPowered, Serializable):
+class NeuralNetwork(object):
+    def __init__(self):
+        pass
+    
+    def loss(self, y, reg= 0.0):
+        if self.output_layer.nonlinearity == tf.nn.softmax:
+            logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
+            loss = tf.reduce_mean(
+                tf.nn.softmax_cross_entropy_with_logits(logits, tf.squeeze(y))
+                )
+            
+        elif self.output_layer.nonlinearity == tf.identity:
+            outputs = self.output_layer.get_output_for(L.get_output(self._layers[-2]))
+            #loss = tf.nn.l2_loss(
+            #    outputs -  y 
+            #)
+            loss = tf.reduce_mean(
+                0.5 * tf.square(outputs - y)
+            )
+        
+        reg_loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        return loss + reg_loss    
+    
+
+class MLP(LayersPowered, Serializable, NeuralNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
@@ -80,13 +104,6 @@ class MLP(LayersPowered, Serializable):
         """
         return self._output
     
-    #@property
-    #def logits(self):
-        #"""
-        #returns output tensor.
-        #"""
-        #x = L.get_output(self._layers[-2])
-        #return self.output_layer.get_logits_for(x)
     def predict(self, X):
         feed = {self.input_var: X}
         sess = tf.get_default_session()
@@ -94,26 +111,13 @@ class MLP(LayersPowered, Serializable):
         if self.output_layer.nonlinearity == tf.nn.softmax:
             y_p = tf.argmax(self._output,1)
         else:
-            raise NotImplementedError
+            y_p = self._output      
         
         Y_p = sess.run(y_p, feed)
-        return Y_p        
-        
-    
-    def loss(self, y, reg= 0.0):
-        if self.output_layer.nonlinearity == tf.nn.softmax:
-            logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
-            loss = tf.reduce_mean(
-                tf.nn.sparse_softmax_cross_entropy_with_logits(logits, tf.squeeze(y))
-                )            
-        else:
-            raise NotImplementedError
-        
-        reg_loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-        return loss + reg_loss
+        return Y_p
     
     
-class BayesMLP(LayersPowered, Serializable):
+class BayesMLP(LayersPowered, Serializable, NeuralNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
@@ -188,30 +192,25 @@ class BayesMLP(LayersPowered, Serializable):
         return self._output
     
     
-    def predict(self, X):
+    def predict(self, X, k= 1):
         feed = {self.input_var: X}
         sess = tf.get_default_session()
         
+        o_p= []
+        for _ in range(k):
+            o_p.append(
+                sess.run(self._output, feed)
+            )
+            o_p = np.concatenate([o[None,...] for o in o_p], axis= 0)
+            mu_p = np.mean(o_p,axis= 0)
+            std_p = np.std(o_p,axis= 0)
+        
         if self.output_layer.nonlinearity == tf.nn.softmax:
-            y_p = tf.argmax(self._output,1)
-        else:
-            raise NotImplementedError
+            Y_p = np.argmax(mu_p,1)
+        elif self.output_layer.nonlinearity == tf.identity:
+            Y_p = mu_p
         
-        Y_p = sess.run(y_p, feed)
-        return Y_p        
-        
-    
-    def loss(self, y, reg= 0.0):
-        if self.output_layer.nonlinearity == tf.nn.softmax:
-            logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
-            loss = tf.reduce_mean(
-                tf.nn.sparse_softmax_cross_entropy_with_logits(logits, tf.squeeze(y))
-                )            
-        else:
-            raise NotImplementedError
-        
-        reg_loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-        return loss + reg_loss    
+        return Y_p  
 
 class ConvNetwork(LayersPowered, Serializable):
     def __init__(self, name, input_shape, output_dim,
