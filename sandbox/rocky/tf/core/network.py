@@ -7,8 +7,8 @@ from sandbox.rocky.tf.core.parameterized import Parameterized
 from sandbox.rocky.tf.core.layers_powered import LayersPowered
 
 class NeuralNetwork(object):
-    def __init__(self):
-        pass
+    #def __init__(self):
+        #pass
     
     def likelihood_loss(self, y):
         if self.output_layer.nonlinearity == tf.nn.softmax:
@@ -31,8 +31,69 @@ class NeuralNetwork(object):
     
     def loss(self, y, reg= 0.0):
         return self.likelihood_loss(y) + self.complexity_loss(reg)
+    
+    @property
+    def input_layer(self):
+        return self._l_in
 
-class MLP(LayersPowered, Serializable, NeuralNetwork):
+    @property
+    def output_layer(self):
+        return self._l_out
+
+    @property
+    def input_var(self):
+        return self._l_in.input_var
+
+    @property
+    def layers(self):
+        return self._layers
+
+    @property
+    def output(self):
+        return self._output    
+    
+class DeterministicNetwork(NeuralNetwork):
+    #def __init__(self):
+        #pass
+    
+    def predict(self, X):
+        feed = {self.input_var: X}
+        sess = tf.get_default_session()
+        
+        if self.output_layer.nonlinearity == tf.nn.softmax:
+            y_p = tf.argmax(self._output,1)
+        else:
+            y_p = self._output      
+        
+        Y_p = sess.run(y_p, feed)
+        return Y_p
+    
+class StochasticNetwork(NeuralNetwork):
+    #def __init__(self):
+        #pass
+    
+    def predict(self, X, k= 1):
+        feed = {self.input_var: X}
+        sess = tf.get_default_session()
+        
+        o_p= []
+        for _ in range(k):
+            o_p.append(
+                sess.run(self._output, feed)
+            )
+            o_p = np.concatenate([o[None,...] for o in o_p], axis= 0)
+            mu_p = np.mean(o_p,axis= 0)
+            std_p = np.std(o_p,axis= 0)
+        
+        if self.output_layer.nonlinearity == tf.nn.softmax:
+            Y_p = np.argmax(mu_p,1)
+        elif self.output_layer.nonlinearity == tf.identity:
+            Y_p = mu_p
+        
+        return Y_p 
+    
+
+class MLP(LayersPowered, Serializable, DeterministicNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
@@ -83,43 +144,43 @@ class MLP(LayersPowered, Serializable, NeuralNetwork):
 
             LayersPowered.__init__(self, l_out)
 
-    @property
-    def input_layer(self):
-        return self._l_in
+    #@property
+    #def input_layer(self):
+        #return self._l_in
 
-    @property
-    def output_layer(self):
-        return self._l_out
+    #@property
+    #def output_layer(self):
+        #return self._l_out
 
-    @property
-    def input_var(self):
-        return self._l_in.input_var
+    #@property
+    #def input_var(self):
+        #return self._l_in.input_var
 
-    @property
-    def layers(self):
-        return self._layers
+    #@property
+    #def layers(self):
+        #return self._layers
 
-    @property
-    def output(self):
-        """
-        returns output tensor.
-        """
-        return self._output
+    #@property
+    #def output(self):
+        #"""
+        #returns output tensor.
+        #"""
+        #return self._output
     
-    def predict(self, X):
-        feed = {self.input_var: X}
-        sess = tf.get_default_session()
+    #def predict(self, X):
+        #feed = {self.input_var: X}
+        #sess = tf.get_default_session()
         
-        if self.output_layer.nonlinearity == tf.nn.softmax:
-            y_p = tf.argmax(self._output,1)
-        else:
-            y_p = self._output      
+        #if self.output_layer.nonlinearity == tf.nn.softmax:
+            #y_p = tf.argmax(self._output,1)
+        #else:
+            #y_p = self._output      
         
-        Y_p = sess.run(y_p, feed)
-        return Y_p
+        #Y_p = sess.run(y_p, feed)
+        #return Y_p
     
     
-class BayesMLP(LayersPowered, Serializable, NeuralNetwork):
+class BayesMLP(LayersPowered, Serializable, StochasticNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
@@ -172,47 +233,78 @@ class BayesMLP(LayersPowered, Serializable, NeuralNetwork):
             self._output = L.get_output(l_out)
 
             LayersPowered.__init__(self, l_out)
+            
+            
+class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
+    def __init__(self, name, output_dim, hidden_spec, hidden_nonlinearity,
+                 output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
+                 output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
+                 input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
+                 reg_params= {},
+                 ):
 
-    @property
-    def input_layer(self):
-        return self._l_in
+        Serializable.quick_init(self, locals())
+        self.name= name
 
-    @property
-    def output_layer(self):
-        return self._l_out
+        with tf.variable_scope(name):
+            if input_layer is None:
+                l_in = L.InputLayer(shape=(None,) + input_shape, input_var=input_var, name="input")
+            else:
+                l_in = input_layer
+            self._layers = [l_in]
+            l_hid = l_in
+            if batch_normalization:
+                l_hid = L.batch_norm(l_hid)
+            for idx, (hidden_type, hidden_size) in enumerate(hidden_spec):
+                if hidden_type == 'dense':
+                    l_hid = L.DenseLayer(
+                        l_hid,
+                        num_units=hidden_size,
+                        nonlinearity=hidden_nonlinearity,
+                        name="hidden_%d" % idx,
+                        W=hidden_W_init,
+                        b=hidden_b_init,
+                        weight_normalization=weight_normalization,
+                        reg_params= reg_params
+                    )                    
 
-    @property
-    def input_var(self):
-        return self._l_in.input_var
+                elif hidden_type == 'latent':
+                    l_hid = L.LatentLayer(
+                        l_hid,
+                        num_units=hidden_size,
+                        name="hidden_%d" % idx,
+                        W=hidden_W_init,
+                        b=hidden_b_init,
+                        weight_normalization=weight_normalization,
+                        reg_params= reg_params
+                    )                    
 
-    @property
-    def layers(self):
-        return self._layers
+                else:
+                    raise NotImplementedError
 
-    @property
-    def output(self):
-        return self._output
-    
-    
-    def predict(self, X, k= 1):
-        feed = {self.input_var: X}
-        sess = tf.get_default_session()
-        
-        o_p= []
-        for _ in range(k):
-            o_p.append(
-                sess.run(self._output, feed)
+                if batch_normalization:
+                    l_hid = L.batch_norm(l_hid)
+                self._layers.append(l_hid)
+            l_out = L.BayesLayer(
+                l_hid,
+                num_units=output_dim,
+                nonlinearity=output_nonlinearity,
+                name="output",
+                W=output_W_init,
+                b=output_b_init,
+                weight_normalization=weight_normalization,
+                reg_params= reg_params
             )
-            o_p = np.concatenate([o[None,...] for o in o_p], axis= 0)
-            mu_p = np.mean(o_p,axis= 0)
-            std_p = np.std(o_p,axis= 0)
-        
-        if self.output_layer.nonlinearity == tf.nn.softmax:
-            Y_p = np.argmax(mu_p,1)
-        elif self.output_layer.nonlinearity == tf.identity:
-            Y_p = mu_p
-        
-        return Y_p  
+            if batch_normalization:
+                l_out = L.batch_norm(l_out)
+            self._layers.append(l_out)
+            self._l_in = l_in
+            self._l_out = l_out
+            # self._input_var = l_in.input_var
+            self._output = L.get_output(l_out)
+
+            LayersPowered.__init__(self, l_out)
+
 
 class ConvNetwork(LayersPowered, Serializable):
     def __init__(self, name, input_shape, output_dim,

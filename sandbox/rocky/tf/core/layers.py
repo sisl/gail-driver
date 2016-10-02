@@ -392,11 +392,7 @@ class BayesLayer(Layer):
         
         self.bayesreg = BayesRegularizer(num_inputs, num_units, hyperparams= reg_params)
         
-        #if not approximate_kl:
-            #self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= gaussian_kl_regularizer)
-        #else:
-            #self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= approx_kl_regularizer)
-        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= self.bayesreg.approx_kl)
+        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= self.bayesreg.weight_kl)
         
         self.W_mu, self.W_rho = tf.split(1, 2, self.W_theta, name='mu_and_rho')
         
@@ -432,6 +428,63 @@ class BayesLayer(Layer):
             activation = activation + tf.expand_dims(self.b, 0)
         return activation    
 
+class LatentLayer(Layer):
+    def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
+                 reg_params= {},
+                 **kwargs):
+        super(LatentLayer, self).__init__(incoming, **kwargs)
+        self.nonlinearity = tf.identity if nonlinearity is None else nonlinearity
+        if nonlinearity is not None:
+            raise NotImplementedError, "Variational layers only support linear latent variables."
+
+        self.num_units = num_units
+
+        num_inputs = int(np.prod(self.input_shape[1:]))
+        
+        self.bayesreg = BayesRegularizer(num_inputs, num_units, hyperparams= reg_params)
+        
+        act_kl = self.bayesreg.activation_kl(get_output(incoming)) # wrapper returning callable act_kl
+        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= act_kl)
+        
+        W_mu, W_rho = tf.split(1, 2, self.W_theta)
+        self.W_mu = tf.identity(W_mu, name= "W_mu")
+        self.W_rho = tf.identity(W_rho, name= "W_rho")
+        
+        #self.W = self.W_mu + tf.log(1.0 + tf.exp(self.W_rho)) * tf.random_normal(self.W_mu.get_shape())
+        
+        if b is None:
+            self.b = None
+        else:
+            self.b = self.add_param(b, (num_units,), name="b", regularizable=False)
+
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], self.num_units)
+    
+    def get_output_for(self, input, **kwargs):
+        """
+        input: a tensor
+        """
+        activation = self.get_logits_for(input, **kwargs)
+        return self.nonlinearity(activation)
+    
+    def get_logits_for(self, input, **kwargs):
+        """
+        Directly compute this layer's output tensor (pre-activation) for input tensor.
+        
+        input: a tensor
+        """
+        if input.get_shape().ndims > 2:
+            # if the input has more than two dimensions, flatten it into a
+            # batch of feature vectors.
+            input = tf.reshape(input, tf.pack([tf.shape(input)[0], -1]))
+
+        Z_mu, Z_sig = tf.matmul(input,self.W_mu), tf.log(1.0 + tf.exp(tf.matmul(input,self.W_rho)))
+        activation = Z_mu + Z_sig * tf.random_normal([-1,self.num_units])
+        if self.b is not None:
+            activation = activation + tf.expand_dims(self.b, 0)
+        return activation
+    
+    
 class DenseLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
                  **kwargs):

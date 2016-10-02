@@ -71,8 +71,8 @@ class FirstOrderOptimizer(Serializable):
         self._train_op = self._tf_optimizer.minimize(loss, var_list=target.get_params(trainable=True))
 
         # define operations for updating prior.
-        update_mus = [(l.bayesreg.hyperparams['empirical'], l.bayesreg.mu.assign(l.W_mu)) for l in target.layers if hasattr(l, 'bayesreg')]
-        update_rhos = [(l.bayesreg.hyperparams['empirical'], l.bayesreg.sig.assign(tf.log(1.0 + tf.exp(l.W_rho))))
+        update_mus = [(l.bayesreg.hyperparams['empirical'], l.bayesreg.w_mu.assign(l.W_mu)) for l in target.layers if hasattr(l, 'bayesreg')]
+        update_rhos = [(l.bayesreg.hyperparams['empirical'], l.bayesreg.w_sig.assign(tf.log(1.0 + tf.exp(l.W_rho))))
                        for l in target.layers if hasattr(l, 'bayesreg')]
         self._update_priors_ops= update_mus + update_rhos
 
