@@ -63,6 +63,8 @@ class Visualizer(object):
     def __init__(self):
         self.tloss = {}
         self.vloss = {}
+        self.closs = {}
+        self.lloss = {}
         
         self.curr_model= ''
         
@@ -70,25 +72,36 @@ class Visualizer(object):
         if not self.tloss.has_key(model_name):
             self.tloss[model_name]= []
             self.vloss[model_name]= []
+            self.closs[model_name]= []
+            self.lloss[model_name]= []
+            
         else:
             print("Warning: model already exists in visualizer.")
             
         self.curr_model= model_name
         
-    def append_data(self, loss, params, itr, elapsed, val_loss= None, verbose= True):
+    def append_data(self, loss, params, itr, elapsed, val_loss= None, c_loss= None, l_loss= None, verbose= True):
         if verbose:
             print("Epoch: {} == Loss: {} == Val Loss: {}".format(itr,loss,val_loss))
         self.tloss[self.curr_model].append(loss)
         self.vloss[self.curr_model].append(val_loss)
+        self.closs[self.curr_model].append(c_loss)
+        self.lloss[self.curr_model].append(l_loss)
         
     def plot(self):
         names= self.tloss.keys()
-        f, axs = plt.subplots(1,len(names))
-        if not hasattr(axs,'__iter__'):
-            axs= [axs]
-        for name, ax in zip(names, axs):
-            ax.set_title(name)
+        f, axs = plt.subplots(2,len(names))
+        if axs.ndim == 1:
+            #axs= axs[None,...]
+            raise NotImplementedError
+        
+        for name, col in zip(names, axs.transpose()):
+            ax1, ax2 = col[0], col[1]
+            ax1.set_title(name)
             
-            ax.plot(self.tloss[name],'b')            
-            ax.plot(self.vloss[name],'r')
+            ax1.plot(self.tloss[name],'b')            
+            ax1.plot(self.vloss[name],'r')
+            
+            ax2.plot(self.closs[name],'g')
+            ax2.plot(self.lloss[name],'k')
         plt.show()

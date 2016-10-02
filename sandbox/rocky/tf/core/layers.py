@@ -11,7 +11,7 @@ from inspect import getargspec
 from difflib import get_close_matches
 from warnings import warn
 
-from sandbox.rocky.tf.core import gaussian_kl_regularizer, approx_kl_regularizer
+from sandbox.rocky.tf.core import BayesRegularizer
 
 
 class G(object):
@@ -378,7 +378,7 @@ class OpLayer(MergeLayer):
 
 class BayesLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
-                 approximate_kl= False,
+                 reg_params= {},
                  **kwargs):
         """
         Warning: Think carefully about the 'regularizable' keyword.
@@ -390,11 +390,14 @@ class BayesLayer(Layer):
 
         num_inputs = int(np.prod(self.input_shape[1:]))
         
-        if not approximate_kl:
-            self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= gaussian_kl_regularizer)
-        else:
-            self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= approx_kl_regularizer)
-            
+        self.bayesreg = BayesRegularizer(num_inputs, num_units, hyperparams= reg_params)
+        
+        #if not approximate_kl:
+            #self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= gaussian_kl_regularizer)
+        #else:
+            #self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= approx_kl_regularizer)
+        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= self.bayesreg.approx_kl)
+        
         self.W_mu, self.W_rho = tf.split(1, 2, self.W_theta, name='mu_and_rho')
         
         self.W = self.W_mu + tf.log(1.0 + tf.exp(self.W_rho)) * tf.random_normal(self.W_mu.get_shape())

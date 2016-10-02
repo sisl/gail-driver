@@ -70,6 +70,12 @@ class FirstOrderOptimizer(Serializable):
 
         self._train_op = self._tf_optimizer.minimize(loss, var_list=target.get_params(trainable=True))
 
+        # define operations for updating prior.
+        update_mus = [(l.bayesreg.hyperparams['empirical'], l.bayesreg.mu.assign(l.W_mu)) for l in target.layers if hasattr(l, 'bayesreg')]
+        update_rhos = [(l.bayesreg.hyperparams['empirical'], l.bayesreg.sig.assign(tf.log(1.0 + tf.exp(l.W_rho))))
+                       for l in target.layers if hasattr(l, 'bayesreg')]
+        self._update_priors_ops= update_mus + update_rhos
+
         # updates = OrderedDict([(k, v.astype(k.dtype)) for k, v in updates.iteritems()])
 
         if extra_inputs is None:
@@ -79,10 +85,19 @@ class FirstOrderOptimizer(Serializable):
             f_loss=lambda: tensor_utils.compile_function(inputs + extra_inputs, loss),
         )
 
+        if kwargs.has_key('like_loss'):
+            l_loss=lambda: tensor_utils.compile_function(inputs + extra_inputs, kwargs['like_loss'])
+            self._opt_fun.set('l_loss', l_loss)
+            
+        if kwargs.has_key('cmpx_loss'):
+            c_loss=lambda: tensor_utils.compile_function(inputs + extra_inputs, kwargs['cmpx_loss'])
+            self._opt_fun.set('c_loss', c_loss)
+
     def loss(self, inputs, extra_inputs=None):
-        if extra_inputs is None:
-            extra_inputs = tuple()
-        return self._opt_fun["f_loss"](*(tuple(inputs) + extra_inputs))
+        raise NotImplementedError # Not sure what this is for yet ...
+        #if extra_inputs is None:
+            #extra_inputs = tuple()
+        #return self._opt_fun["f_loss"](*(tuple(inputs) + extra_inputs))
 
     def optimize(self, inputs, extra_inputs=None, callback=None,
                  val_inputs= None, val_extra_inputs= None):
@@ -92,6 +107,18 @@ class FirstOrderOptimizer(Serializable):
             raise NotImplementedError
 
         f_loss = self._opt_fun["f_loss"]
+        
+        # Plot individual costs from complexity / likelihood terms.
+        try:
+            use_c_loss= True
+            c_loss = self._opt_fun["c_loss"]
+        except KeyError:
+            use_c_loss= False
+        try:
+            use_l_loss= True
+            l_loss = self._opt_fun["l_loss"]
+        except KeyError:
+            use_l_loss= False        
 
         if extra_inputs is None:
             extra_inputs = tuple()
@@ -113,7 +140,11 @@ class FirstOrderOptimizer(Serializable):
                 sess.run(self._train_op, dict(list(zip(self._input_vars, batch))))
                 if self._verbose:
                     progbar.update(len(batch[0]))
-
+            
+            for interval, op in self._update_priors_ops:
+                if interval != 0 and epoch % interval == 0:
+                    sess.run(op)
+            
             if self._verbose:
                 if progbar.active:
                     progbar.stop()
@@ -122,7 +153,7 @@ class FirstOrderOptimizer(Serializable):
             if val_inputs is not None and val_extra_inputs is not None:
                 val_loss = f_loss(*(tuple(val_inputs) + val_extra_inputs))
             else:
-                val_loss = None
+                val_loss = None            
 
             if self._verbose:
                 logger.log("Epoch: %d | Loss: %f" % (epoch, train_loss))
@@ -134,6 +165,13 @@ class FirstOrderOptimizer(Serializable):
                     itr=epoch,
                     elapsed=elapsed,
                 )
+                if use_c_loss:
+                    train_c_loss = c_loss(*(tuple(inputs) + extra_inputs))                    
+                    callback_args['c_loss'] = train_c_loss
+                if use_l_loss:
+                    train_l_loss = l_loss(*(tuple(inputs) + extra_inputs))                    
+                    callback_args['l_loss'] = train_l_loss                    
+                    
                 if val_loss is not None:
                     callback_args.update({'val_loss': val_loss})
                 if self._callback:

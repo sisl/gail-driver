@@ -10,7 +10,7 @@ class NeuralNetwork(object):
     def __init__(self):
         pass
     
-    def loss(self, y, reg= 0.0):
+    def likelihood_loss(self, y):
         if self.output_layer.nonlinearity == tf.nn.softmax:
             logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
             loss = tf.reduce_mean(
@@ -19,16 +19,18 @@ class NeuralNetwork(object):
             
         elif self.output_layer.nonlinearity == tf.identity:
             outputs = self.output_layer.get_output_for(L.get_output(self._layers[-2]))
-            #loss = tf.nn.l2_loss(
-            #    outputs -  y 
-            #)
             loss = tf.reduce_mean(
                 0.5 * tf.square(outputs - y)
             )
         
-        reg_loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-        return loss + reg_loss    
+        return loss
     
+    def complexity_loss(self, reg):
+        loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        return loss
+    
+    def loss(self, y, reg= 0.0):
+        return self.likelihood_loss(y) + self.complexity_loss(reg)
 
 class MLP(LayersPowered, Serializable, NeuralNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
@@ -122,7 +124,7 @@ class BayesMLP(LayersPowered, Serializable, NeuralNetwork):
                  output_nonlinearity, hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
                  input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
-                 approximate_kl= True,
+                 reg_params= {},
                  ):
 
         Serializable.quick_init(self, locals())
@@ -146,7 +148,7 @@ class BayesMLP(LayersPowered, Serializable, NeuralNetwork):
                     W=hidden_W_init,
                     b=hidden_b_init,
                     weight_normalization=weight_normalization,
-                    approximate_kl= approximate_kl
+                    reg_params= reg_params
                 )
                 if batch_normalization:
                     l_hid = L.batch_norm(l_hid)
@@ -159,7 +161,7 @@ class BayesMLP(LayersPowered, Serializable, NeuralNetwork):
                 W=output_W_init,
                 b=output_b_init,
                 weight_normalization=weight_normalization,
-                approximate_kl= approximate_kl
+                reg_params= reg_params
             )
             if batch_normalization:
                 l_out = L.batch_norm(l_out)
