@@ -8,9 +8,12 @@ def pringle(N, M, std):
     Y = (X[:,0]**2 - X[:,1]**2 + np.random.normal(0,std,(N,)))[...,None]    
     return X, Y
 
-def wave(N, M, std):
+def wave(N, M, O, std):
     X = Xgen(N,M)
-    Y = (np.cos(X[:,0]) + np.sin(X[:,1]) + np.random.normal(0,std,(N,)))[...,None]    
+    #Y = (np.cos(X[:,0]) + np.sin(X[:,1]) + np.random.normal(0,std,(N,)))[...,None]
+    Y = np.column_stack([np.cos(X[:,i])[...,None] if i % 2 == 0 else np.sin(X[:,i])[...,None] for i in range(M)])
+    lis = np.array_split(Y,O,axis=1)
+    Y = np.column_stack([l.sum(axis=1)[...,None] for l in lis])
     return X, Y
 
 def gaussians(N, M, mus, stds, one_hot= False):
@@ -24,7 +27,7 @@ def gaussians(N, M, mus, stds, one_hot= False):
         X.append(np.random.normal(mu, std, (N/K, M)))
         if one_hot:
             Y.append(
-                np.repeat(np.eye(K)[i], N/K, axis= 0)
+                np.repeat(np.eye(K)[i][None,...], N/K, axis= 0)
                 )
         else:
             Y.append(
@@ -35,10 +38,14 @@ def gaussians(N, M, mus, stds, one_hot= False):
     Y = np.row_stack(Y)
     return X, Y
 
-def normalize(X, Y, normalize_outputs= False):
+def normalize(X, Y, normalize_targets= False):
     ## Normalize data
     X -= X.mean(axis= 0)
-    X /= X.std(axis= 0)    
+    X /= X.std(axis= 0)
+    if normalize_targets:
+        Y -= Y.mean(axis= 0)
+        Y /= Y.std(axis= 0)
+    
     return X, Y
 
 def permute_and_split(X, Y, n_total= 0, n_val= 0):
