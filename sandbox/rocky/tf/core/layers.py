@@ -136,6 +136,10 @@ class Layer(object):
                                  "Cannot create Layer with a non-positive input_shape "
                                  "dimension. input_shape=%r, self.name=%r") % (
                                  self.input_shape, self.name))
+        
+    @property
+    def penalize_complexity(self):
+        return False
 
     @property
     def output_shape(self):
@@ -426,7 +430,8 @@ class BayesLayer(Layer):
         activation = tf.matmul(input, self.W)
         if self.b is not None:
             activation = activation + tf.expand_dims(self.b, 0)
-        return activation    
+        return activation
+
 
 class LatentLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
@@ -443,47 +448,52 @@ class LatentLayer(Layer):
         
         self.bayesreg = BayesRegularizer(num_inputs, num_units, hyperparams= reg_params)
         
-        act_kl = self.bayesreg.activation_kl(get_output(incoming)) # wrapper returning callable act_kl
-        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= act_kl)
+        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= None)
         
         W_mu, W_rho = tf.split(1, 2, self.W_theta)
         self.W_mu = tf.identity(W_mu, name= "W_mu")
         self.W_rho = tf.identity(W_rho, name= "W_rho")
         
-        #self.W = self.W_mu + tf.log(1.0 + tf.exp(self.W_rho)) * tf.random_normal(self.W_mu.get_shape())
-        
         if b is None:
             self.b = None
         else:
-            self.b = self.add_param(b, (num_units,), name="b", regularizable=False)
+            self.b_mu = self.add_param(b, (num_units,), name="b_mu", regularizable=False)
+            self.b_rho = self.add_param(b, (num_units,), name="b_rho", regularizable=False)            
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
     
     def get_output_for(self, input, **kwargs):
         """
-        input: a tensor
-        """
-        activation = self.get_logits_for(input, **kwargs)
-        return self.nonlinearity(activation)
-    
-    def get_logits_for(self, input, **kwargs):
-        """
-        Directly compute this layer's output tensor (pre-activation) for input tensor.
+        Sample a vector from the probability discribution induced by logits.
         
         input: a tensor
         """
         batch_size = input.get_shape()[0].value
+        
+        Z_mu, Z_sig = self.get_dparams_for(input, **kwargs)
+        latent = Z_mu + Z_sig * tf.random_normal([batch_size,self.num_units])
+        return latent
+    
+    def get_dparams_for(self, input, **kwargs):
+        """
+        Directly compute the distributional parameters for the latent distribution.
+        
+        input: a tensor
+        """
         if input.get_shape().ndims > 2:
             # if the input has more than two dimensions, flatten it into a
             # batch of feature vectors.
             input = tf.reshape(input, tf.pack([tf.shape(input)[0], -1]))
 
-        Z_mu, Z_sig = tf.matmul(input,self.W_mu), tf.log(1.0 + tf.exp(tf.matmul(input,self.W_rho)))
-        activation = Z_mu + Z_sig * tf.random_normal([batch_size,self.num_units])
-        if self.b is not None:
-            activation = activation + tf.expand_dims(self.b, 0)
-        return activation
+        Z_mu = tf.matmul(input,self.W_mu) + self.b_mu
+        Z_sig = tf.log(1.0 + tf.exp(tf.matmul(input,self.W_rho) + self.b_rho))
+
+        return Z_mu, Z_sig
+    
+    @property
+    def penalize_complexity(self):
+        return True
     
     
 class DenseLayer(Layer):
