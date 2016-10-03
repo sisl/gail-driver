@@ -26,7 +26,7 @@ class NeuralNetwork(object):
     
     def likelihood_loss(self, y):
         if self.output_layer.nonlinearity == tf.nn.softmax:
-            logits = self.output_layer.get_logits_for(L.get_output(self._layers[-2]))
+            logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
             loss = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(logits, tf.squeeze(y))
                 )
@@ -39,9 +39,23 @@ class NeuralNetwork(object):
         
         return loss
     
-    def complexity_loss(self, reg):
-        loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES),name='cmpx_loss')
-        return loss
+    def complexity_loss(self, reg, cmx= 1.0):
+        """
+        Compute penalties for model complexity (e.g., l2 regularization, or kl penalties for vae and bnn).
+        """
+        
+        # loss coming from weight regularization
+        loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        
+        # loss coming from data-dependent regularization
+        for layer in self.layers:
+            if layer.penalize_complexity:
+                z_mu, z_sig = layer.get_dparams_for(L.get_output(layer.input_layer))
+                d_loss = layer.bayesreg.activ_kl(z_mu,z_sig)
+                
+                loss += cmx * d_loss
+            
+        return reg * loss
     
     def loss(self, y, reg= 0.0):
         return tf.add(self.likelihood_loss(y), self.complexity_loss(reg),name= 'loss')
@@ -204,6 +218,7 @@ class BayesMLP(LayersPowered, Serializable, StochasticNetwork):
         with tf.variable_scope(name):
             if input_layer is None:
                 l_in = L.InputLayer(shape=(batch_size,) + input_shape, input_var=input_var, name="input")
+                
             else:
                 l_in = input_layer
             self._layers = [l_in]
