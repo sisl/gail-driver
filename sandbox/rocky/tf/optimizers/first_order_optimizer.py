@@ -13,6 +13,8 @@ import time
 from functools import partial
 import pyprind
 
+import numpy as np
+
 
 class FirstOrderOptimizer(Serializable):
     """
@@ -152,16 +154,16 @@ class FirstOrderOptimizer(Serializable):
                 if self._verbose:
                     progbar.update(len(batch[0]))
                     
-            train_loss = sum(train_losses)
-            train_c_loss = sum(train_c_losses)
-            train_l_loss = sum(train_l_losses)
+            train_loss = np.mean(train_losses)
+            train_c_loss = np.mean(train_c_losses)
+            train_l_loss = np.mean(train_l_losses)
             
             val_losses= []
             if val_inputs is not None:
                 for t, batch in enumerate(val_dataset.iterate(update= True)):
                     val_losses.append(f_loss(*batch))
                     
-                val_loss = sum(val_losses)
+                val_loss = np.mean(val_losses)
                                 
             for interval, op in self._update_priors_ops:
                 if interval != 0 and epoch % interval == 0:

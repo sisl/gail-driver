@@ -17,11 +17,13 @@ tf.set_random_seed(SEED)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--epochs',type=int,default= 500)
-parser.add_argument('--reg',type=float,default=0.0)
 parser.add_argument('--classif',type=bool,default= False)
 parser.add_argument('--regress',type=bool,default= False)
 parser.add_argument('--one_hot',type=bool,default= True)
 parser.add_argument('--batch_size',type=int,default= 20)
+
+parser.add_argument('--reg',type=float,default=0.0) # weight used for parameter regularization
+parser.add_argument('--cmx',type=float,default=1.0) # weight used for data-dependent regularization
 
 args = parser.parse_args()
 
@@ -46,9 +48,9 @@ elif args.regress:
     
     y = tf.placeholder(dtype=tf.float32, shape= [None, O], name='labels')
     
-#mlp = MLP('mlp', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,)) # 0.884 - 0.72
+mlp = MLP('mlp', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,)) # 0.884 - 0.72
 
-#bmlp_1 = BayesMLP('bmlp_1', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':True,'empirical':0,'samples':1}) # 0.702 - 0.64
+bmlp_1 = BayesMLP('bmlp_1', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':False,'muldiag':True,'empirical':0,'samples':1}) # 0.702 - 0.64
 #bmlp_2 = BayesMLP('bmlp_2', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':False,'muldiag':True,'empirical':0,'samples':1}) # 0.674 - 0.74
 #bmlp_3 = BayesMLP('bmlp_3', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':True,'empirical':10,'samples':1}) # 0.718 - 0.57
 #bmlp_4 = BayesMLP('bmlp_4', O, [H], tf.nn.tanh, output_nonlinearity, input_shape= (M,), reg_params={'approx':True,'muldiag':False,'empirical':10,'samples':1}) # 0.712 - 0.77
@@ -66,8 +68,8 @@ for model in models:
     x = model.input_var    
     viz.add_model(model.name)
     
-    optimizer = FOO(max_epochs= args.epochs, batch_size=args.batch_size, tolerance= 1e-6, sgvb= True)    
-    optimizer.update_opt(model.loss(y, reg= args.reg), model, [x], extra_inputs= [y],
+    optimizer = FOO(max_epochs= args.epochs, batch_size=args.batch_size, tolerance= 1e-6)    
+    optimizer.update_opt(model.loss(y, reg= args.reg, cmx= args.cmx), model, [x], extra_inputs= [y],
                          like_loss= model.likelihood_loss(y),
                          cmpx_loss= model.complexity_loss(args.reg))
     
