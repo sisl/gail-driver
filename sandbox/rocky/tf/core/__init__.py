@@ -18,32 +18,6 @@ class BayesRegularizer(object):
         
         self._mu = tf.Variable(np.zeros((fan_in, fan_out)), trainable= False, name= 'prior_mu', dtype= tf.float32)
         self._sig = tf.Variable(np.ones((fan_in, fan_out)), trainable= False, name= 'prior_sig', dtype= tf.float32)
-
-    def activation_kl(self, x):
-        """
-        Wrapper function returning kl regularizer for variational activations, dependent on input tensor x
-        """
-        if self.hyperparams['empirical'] != 0:
-            raise NotImplementedError, "Latent layers do not support empirical bayes."
-        
-        def _activation_kl(t, name= None): # t is weights W_mu and W_rho concatenated
-            # unpack hyperparams
-            k = self.hyperparams['samples']
-            muldiag = self.hyperparams['muldiag']
-            approx = self.hyperparams['approx']
-            
-            # unpack posterior params
-            W_mu, W_rho = tf.split(1,2,t)
-            
-            ## Warning : May need to be important to have individual bias terms
-            Z_mu, Z_sig = tf.matmul(x,W_mu), tf.log(1.0 + tf.exp(tf.matmul(x,W_rho)))
-            Z_mu_prior, Z_sig_prior = tf.constant(np.zeros(self.fan_out),dtype=tf.float32),tf.constant(np.ones(self.fan_out),dtype=tf.float32)
-            
-            kl_d = self._compute_kl_d(Z_mu, Z_sig, Z_mu_prior, Z_sig_prior)
-            
-            return tf.reduce_sum(kl_d)
-        
-        return _activation_kl
         
     def weight_kl(self, t, name= None): # smaller seems better ...
         """
@@ -64,7 +38,21 @@ class BayesRegularizer(object):
         
         return tf.reduce_sum(kl_d)
     
+    def activ_kl(self, mu, sig):
+        """
+        Given batch of mu and sigma vectors, compute kl divergence from standard gaussian.
+        """
+        mu_prior = tf.constant(np.zeros((self.fan_out,)),dtype=tf.float32)
+        sig_prior = tf.constant(np.ones((self.fan_out,)),dtype=tf.float32)
+        
+        kl_d = self._compute_kl_d(mu, sig, mu_prior, sig_prior)
+        
+        return tf.reduce_sum(kl_d)
+    
     def _compute_kl_d(self, mu, sig, mu_prior, sig_prior):
+        """
+        helper function for computing kl divergence.
+        """
         # unpack hyperparams
         k = self.hyperparams['samples']
         muldiag = self.hyperparams['muldiag']
