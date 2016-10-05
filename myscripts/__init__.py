@@ -38,24 +38,34 @@ def gaussians(N, M, mus, stds, one_hot= False):
     Y = np.row_stack(Y)
     return X, Y
 
-def normalize(X, Y, normalize_targets= False):
+def normalize(X, Y, normalize_targets= False, epsilon= 1e-6):
     ## Normalize data
     X -= X.mean(axis= 0)
-    X /= X.std(axis= 0)
+    X /= (X.std(axis= 0) + epsilon)
     if normalize_targets:
         Y -= Y.mean(axis= 0)
-        Y /= Y.std(axis= 0)
+        Y /= (Y.std(axis= 0) + epsilon)
     
     return X, Y
 
-def permute_and_split(X, Y, n_total= 0, n_val= 0):
+def rescale(X, Y, normalize_targets= False):
+    ## Normalize data
+    X = (X - X.min())/(X.max() - X.min())
+    
+    return X, Y
+
+def permute_and_split(X, Y, p_train= 0.7):
+    ## retrieve dimensions
+    N = X.shape[0]
+    n_train = int(N * p_train)
+    
     ## permute data
-    p = np.random.permutation(n_total)
+    p = np.random.permutation(N)
     X, Y = X[p], Y[p]
     
     ## Split data
-    X_t, Y_t = X[:n_total-n_val], Y[:n_total-n_val]
-    X_v, Y_v = X[-n_val:], Y[-n_val:]
+    X_t, Y_t = X[:n_train], Y[:n_train]
+    X_v, Y_v = X[n_train:], Y[n_train:]
     
     return X_t, Y_t, X_v, Y_v
 
@@ -82,11 +92,19 @@ class Visualizer(object):
         
     def append_data(self, loss, params, itr, elapsed, val_loss= None, c_loss= None, l_loss= None, verbose= True):
         if verbose:
-            print("Epoch: {} == Loss: {} == Val Loss: {}".format(itr,loss,val_loss))
+            print("Epoch: {:05d} == Loss: {:.5f} == Val Loss: {:.5f}".format(itr,loss,val_loss))
         self.tloss[self.curr_model].append(loss)
         self.vloss[self.curr_model].append(val_loss)
         self.closs[self.curr_model].append(c_loss)
         self.lloss[self.curr_model].append(l_loss)
+        
+    def display_image_batch(self, X):
+        f, axs = plt.subplots(1, 5)
+        for i, ax in enumerate(axs):
+            ax.imshow(X[i])
+            
+        plt.show()
+        pass
         
     def plot(self):
         names= self.tloss.keys()
