@@ -7,8 +7,6 @@ from sandbox.rocky.tf.core.parameterized import Parameterized
 from sandbox.rocky.tf.core.layers_powered import LayersPowered
 
 class NeuralNetwork(object):
-    #def __init__(self):
-        #pass
     
     def _predict(self, t, X):
         sess = tf.get_default_session()
@@ -24,26 +22,25 @@ class NeuralNetwork(object):
             
         return pred
     
-    def likelihood_loss(self, y):
+    def likelihood_loss(self):
         if self.output_layer.nonlinearity == tf.nn.softmax:
             logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
             loss = tf.reduce_mean(
-                tf.nn.softmax_cross_entropy_with_logits(logits, tf.squeeze(y))
+                tf.nn.softmax_cross_entropy_with_logits(logits, tf.squeeze(self.target_var))
                 )
             
         elif self.output_layer.nonlinearity == tf.identity:
             outputs = self.output_layer.get_output_for(L.get_output(self._layers[-2]))
             loss = tf.reduce_mean(
-                0.5 * tf.square(outputs - y), name='like_loss'
+                0.5 * tf.square(outputs - self.target_var), name='like_loss'
             )
         
         return loss
     
-    def complexity_loss(self, reg, cmx= 1.0):
+    def complexity_loss(self, reg, cmx):
         """
         Compute penalties for model complexity (e.g., l2 regularization, or kl penalties for vae and bnn).
         """
-        
         # loss coming from weight regularization
         loss = reg * tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         
@@ -57,8 +54,8 @@ class NeuralNetwork(object):
             
         return reg * loss
     
-    def loss(self, y, reg= 0.0):
-        return tf.add(self.likelihood_loss(y), self.complexity_loss(reg),name= 'loss')
+    def loss(self, reg= 0.0, cmx= 1.0):
+        return tf.add(self.likelihood_loss(), self.complexity_loss(reg, cmx),name= 'loss')
     
     @property
     def input_layer(self):
@@ -71,6 +68,10 @@ class NeuralNetwork(object):
     @property
     def input_var(self):
         return self._l_in.input_var
+    
+    @property
+    def target_var(self):
+        return self._l_tar.input_var       
 
     @property
     def layers(self):
@@ -78,11 +79,14 @@ class NeuralNetwork(object):
 
     @property
     def output(self):
-        return self._output    
+        return self._output
+    
+    @property
+    def n_params(self):
+        return sum([np.prod(param.get_shape()).value for param in self.get_params()])
+    
     
 class DeterministicNetwork(NeuralNetwork):
-    #def __init__(self):
-        #pass
     
     def predict(self, X):
         
@@ -95,8 +99,6 @@ class DeterministicNetwork(NeuralNetwork):
         return Y_p
     
 class StochasticNetwork(NeuralNetwork):
-    #def __init__(self):
-        #pass
     
     def predict(self, X, k= 1):
         sess = tf.get_default_session()
@@ -163,45 +165,12 @@ class MLP(LayersPowered, Serializable, DeterministicNetwork):
             self._layers.append(l_out)
             self._l_in = l_in
             self._l_out = l_out
+            self._l_tar = L.InputLayer(shape=(batch_size,) + (output_dim,), input_var=input_var, name="target")
+            
             # self._input_var = l_in.input_var
             self._output = L.get_output(l_out)
 
             LayersPowered.__init__(self, l_out)
-
-    #@property
-    #def input_layer(self):
-        #return self._l_in
-
-    #@property
-    #def output_layer(self):
-        #return self._l_out
-
-    #@property
-    #def input_var(self):
-        #return self._l_in.input_var
-
-    #@property
-    #def layers(self):
-        #return self._layers
-
-    #@property
-    #def output(self):
-        #"""
-        #returns output tensor.
-        #"""
-        #return self._output
-    
-    #def predict(self, X):
-        #feed = {self.input_var: X}
-        #sess = tf.get_default_session()
-        
-        #if self.output_layer.nonlinearity == tf.nn.softmax:
-            #y_p = tf.argmax(self._output,1)
-        #else:
-            #y_p = self._output      
-        
-        #Y_p = sess.run(y_p, feed)
-        #return Y_p
     
     
 class BayesMLP(LayersPowered, Serializable, StochasticNetwork):
@@ -254,6 +223,8 @@ class BayesMLP(LayersPowered, Serializable, StochasticNetwork):
             self._layers.append(l_out)
             self._l_in = l_in
             self._l_out = l_out
+            self._l_tar = L.InputLayer(shape=(batch_size,) + (output_dim,), input_var=input_var, name="target")
+            
             # self._input_var = l_in.input_var
             self._output = L.get_output(l_out)
 
@@ -325,10 +296,20 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
             self._layers.append(l_out)
             self._l_in = l_in
             self._l_out = l_out
+            self._l_tar = L.InputLayer(shape=(batch_size,) + (output_dim,), input_var=input_var, name="target")
+            
             # self._input_var = l_in.input_var
             self._output = L.get_output(l_out)
 
             LayersPowered.__init__(self, l_out)
+            
+    def sample(self):
+        sess = tf.get_default_session()
+        l = sess.run(
+            L.get_output([layer for layer in self.layers], inputs= tf.random_uniform(self._l_in.input_shape))
+        )
+        
+        return l[-1]
 
 
 class ConvNetwork(LayersPowered, Serializable):

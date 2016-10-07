@@ -198,3 +198,30 @@ class FirstOrderOptimizer(Serializable):
             #if abs(last_loss - train_loss) < self._tolerance:
                 #break
             #last_loss = train_loss
+
+"""
+optimizer = FOO(max_epochs= args.epochs, batch_size=args.batch_size, tolerance= 1e-6)    
+optimizer.update_opt(model.loss(reg= args.reg, cmx= args.cmx), model, [model.input_var], extra_inputs= [model.target_var],
+                     like_loss= model.likelihood_loss(),
+                     cmpx_loss= model.complexity_loss(args.reg, args.cmx))
+
+with tf.Session() as sess:
+    sess.run(tf.initialize_all_variables())
+    optimizer.optimize([X_t], extra_inputs=tuple([Y_t]), callback= viz.append_data,
+                 val_inputs= [X_v], val_extra_inputs= tuple([Y_v]))
+"""
+
+class Solver(object):
+    """
+    Convenience class wrapping the first order optimizer
+    """
+    def __init__(self, model, reg, cmx, max_epochs, batch_size, tolerance, callback= None):
+        self._optimizer = FirstOrderOptimizer(max_epochs= max_epochs, batch_size= batch_size, tolerance= tolerance)
+        self._optimizer.update_opt(model.loss(reg= reg, cmx= cmx), model, [model.input_var], extra_inputs= [model.target_var],
+                     like_loss= model.likelihood_loss(), cmpx_loss= model.complexity_loss(reg, cmx))
+        self._callback = callback
+        
+    def train(self, X_train, Y_train, X_validate= None, Y_validate= None):
+        self._optimizer.optimize([X_train], extra_inputs= tuple([Y_train]), callback= self._callback, 
+                                val_inputs= [X_validate], val_extra_inputs= tuple([Y_validate]))
+        
