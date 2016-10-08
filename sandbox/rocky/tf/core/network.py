@@ -3,10 +3,10 @@ import tensorflow as tf
 import numpy as np
 import itertools
 from rllab.core.serializable import Serializable
-from sandbox.rocky.tf.core.parameterized import Parameterized
+from sandbox.rocky.tf.core.parameterized import Parameterized, Model
 from sandbox.rocky.tf.core.layers_powered import LayersPowered
 
-class NeuralNetwork(object):
+class NeuralNetwork(Model):
     
     def _predict(self, t, X):
         sess = tf.get_default_session()
@@ -34,7 +34,13 @@ class NeuralNetwork(object):
             loss = tf.reduce_mean(
                 0.5 * tf.square(outputs - self.target_var), name='like_loss'
             )
-        
+            
+        elif self.output_layer.nonlinearity == tf.nn.sigmoid:
+            logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+            loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.squeeze(self.target_var))
+            )
+
         return loss
     
     def complexity_loss(self, reg, cmx):
@@ -114,6 +120,8 @@ class StochasticNetwork(NeuralNetwork):
         if self.output_layer.nonlinearity == tf.nn.softmax:
             Y_p = np.argmax(mu_p,1)
         elif self.output_layer.nonlinearity == tf.identity:
+            Y_p = mu_p
+        elif self.output_layer.nonlinearity == tf.sigmoid:
             Y_p = mu_p
         
         return Y_p 
@@ -281,15 +289,14 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
                 if batch_normalization:
                     l_hid = L.batch_norm(l_hid)
                 self._layers.append(l_hid)
-            l_out = L.BayesLayer(
+            l_out = L.DenseLayer(
                 l_hid,
                 num_units=output_dim,
                 nonlinearity=output_nonlinearity,
                 name="output",
                 W=output_W_init,
                 b=output_b_init,
-                weight_normalization=weight_normalization,
-                reg_params= reg_params
+                weight_normalization=weight_normalization
             )
             if batch_normalization:
                 l_out = L.batch_norm(l_out)
@@ -302,15 +309,20 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
             self._output = L.get_output(l_out)
 
             LayersPowered.__init__(self, l_out)
-            
-    def sample(self):
-        sess = tf.get_default_session()
-        l = sess.run(
-            L.get_output([layer for layer in self.layers], inputs= tf.random_uniform(self._l_in.input_shape))
-        )
         
-        return l[-1]
-
+    def generate(self, Z= None, prior_ix= -1):
+        # retrieve all layers receiving inputs from a LatentLayer       
+        encoders = [layer for layer in self.layers if type(layer) is L.LatentLayer]
+        sampling_layer = encoders[prior_ix]
+        if Z is None:
+            Z = tf.random_normal(sampling_layer.output_shape)
+            
+        d = {sampling_layer : tf.random_normal(sampling_layer.output_shape)}
+        
+        sess = tf.get_default_session()
+        Y = sess.run(L.get_output(self.output_layer, inputs= d))
+        
+        return Y
 
 class ConvNetwork(LayersPowered, Serializable):
     def __init__(self, name, input_shape, output_dim,
