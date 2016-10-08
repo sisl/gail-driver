@@ -98,6 +98,10 @@ class GymEnv(Env, Serializable):
     def render(self):
         self.env.render()
 
+    def get_param_values(self):
+        # I added this.
+        return None
+
     def terminate(self):
         if self.monitoring:
             self.env.monitor.close()
