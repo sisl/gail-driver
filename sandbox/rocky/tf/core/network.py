@@ -36,11 +36,17 @@ class NeuralNetwork(Model):
             )
             
         elif self.output_layer.nonlinearity == tf.nn.sigmoid:
+            
             logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
-            loss = tf.reduce_mean(
-                tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.squeeze(self.target_var))
-            )
+            sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.squeeze(self.target_var))
 
+            if sigmoid_loss.get_shape().ndims == 2:
+                loss = tf.reduce_mean(
+                    tf.reduce_sum(sigmoid_loss, reduction_indices= 1)
+                )
+            else:
+                loss = tf.reduce_mean(sigmoid_loss)
+            
         return loss
     
     def complexity_loss(self, reg, cmx):
@@ -316,13 +322,13 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
         sampling_layer = encoders[prior_ix]
         if Z is None:
             Z = tf.random_normal(sampling_layer.output_shape)
-            
-        d = {sampling_layer : tf.random_normal(sampling_layer.output_shape)}
+        else:
+            Z = tf.constant(Z, dtype=tf.float32)
         
         sess = tf.get_default_session()
-        Y = sess.run(L.get_output(self.output_layer, inputs= d))
+        Y = sess.run(L.get_output(self.output_layer, inputs= {sampling_layer : Z}))
         
-        return Y
+        return Y     
 
 class ConvNetwork(LayersPowered, Serializable):
     def __init__(self, name, input_shape, output_dim,
