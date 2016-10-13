@@ -103,6 +103,27 @@ class NPO(BatchPolopt):
         all_input_values += tuple(state_info_list) + tuple(dist_info_list)
         if self.policy.recurrent:
             all_input_values += (samples_data["valids"],)
+
+        self.optimize_policy_from_inputs(all_input_values)
+        #logger.log("Computing loss before")
+        #loss_before = self.optimizer.loss(all_input_values)
+        #logger.log("Computing KL before")
+        #mean_kl_before = self.optimizer.constraint_val(all_input_values)
+        #logger.log("Optimizing")
+        #self.optimizer.optimize(all_input_values)
+        #logger.log("Computing KL after")
+        #mean_kl = self.optimizer.constraint_val(all_input_values)
+        #logger.log("Computing loss after")
+        #loss_after = self.optimizer.loss(all_input_values)
+        #logger.record_tabular('LossBefore', loss_before)
+        #logger.record_tabular('LossAfter', loss_after)
+        #logger.record_tabular('MeanKLBefore', mean_kl_before)
+        #logger.record_tabular('MeanKL', mean_kl)
+        #logger.record_tabular('dLoss', loss_before - loss_after)
+        return dict()
+
+    def optimize_policy_from_inputs(self, all_input_values):
+
         logger.log("Computing loss before")
         loss_before = self.optimizer.loss(all_input_values)
         logger.log("Computing KL before")
@@ -118,7 +139,6 @@ class NPO(BatchPolopt):
         logger.record_tabular('MeanKLBefore', mean_kl_before)
         logger.record_tabular('MeanKL', mean_kl)
         logger.record_tabular('dLoss', loss_before - loss_after)
-        return dict()
 
     @overrides
     def get_itr_snapshot(self, itr, samples_data):

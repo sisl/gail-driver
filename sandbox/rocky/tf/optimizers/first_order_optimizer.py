@@ -90,7 +90,7 @@ class FirstOrderOptimizer(Serializable):
         if kwargs.has_key('like_loss'):
             l_loss=lambda: tensor_utils.compile_function(inputs + extra_inputs, kwargs['like_loss'])
             self._opt_fun.set('l_loss', l_loss)
-            
+
         if kwargs.has_key('cmpx_loss'):
             c_loss=lambda: tensor_utils.compile_function(inputs + extra_inputs, kwargs['cmpx_loss'])
             self._opt_fun.set('c_loss', c_loss)
@@ -102,17 +102,17 @@ class FirstOrderOptimizer(Serializable):
         #return self._opt_fun["f_loss"](*(tuple(inputs) + extra_inputs))
 
     def optimize(self, inputs, extra_inputs=None, callback=None,
-                 val_inputs= None, val_extra_inputs= None):
+                 val_inputs= [None], val_extra_inputs= tuple([None])):
 
         if len(inputs) == 0:
             # Assumes that we should always sample mini-batches
             raise NotImplementedError
-        
+
         assert len(inputs) == 1
 
         dataset_size, _ = inputs[0].shape
         f_loss = self._opt_fun["f_loss"]
-        
+
         # Plot individual costs from complexity / likelihood terms.
         try:
             use_c_loss= True
@@ -123,7 +123,7 @@ class FirstOrderOptimizer(Serializable):
             use_l_loss= True
             l_loss = self._opt_fun["l_loss"]
         except KeyError:
-            use_l_loss= False        
+            use_l_loss= False
 
         if extra_inputs is None:
             extra_inputs = tuple()
@@ -133,7 +133,7 @@ class FirstOrderOptimizer(Serializable):
         start_time = time.time()
 
         train_dataset = BatchDataset(inputs, self._batch_size, extra_inputs=extra_inputs)
-        if val_inputs is not None:
+        if not all([vi is None for vi in val_inputs]):
             val_dataset = BatchDataset(val_inputs, self._batch_size, extra_inputs= val_extra_inputs)
 
         sess = tf.get_default_session()
@@ -150,28 +150,28 @@ class FirstOrderOptimizer(Serializable):
                 train_losses.append(f_loss(*batch))
                 train_c_losses.append(c_loss(*batch))
                 train_l_losses.append(l_loss(*batch))
-                
+
                 if self._verbose:
                     progbar.update(len(batch[0]))
-                    
+
             train_loss = np.mean(train_losses)
             train_c_loss = np.mean(train_c_losses)
             train_l_loss = np.mean(train_l_losses)
-            
+
             val_losses= []
-            if val_inputs is not None:
+            if not all([vi is None for vi in val_inputs]):
                 for t, batch in enumerate(val_dataset.iterate(update= True)):
                     val_losses.append(f_loss(*batch))
-                    
+
                 val_loss = np.mean(val_losses)
-                                
+
             for interval, op in self._update_priors_ops:
                 if interval != 0 and epoch % interval == 0:
                     sess.run(op)
-            
+
             if self._verbose:
                 if progbar.active:
-                    progbar.stop()           
+                    progbar.stop()
 
             if self._verbose:
                 logger.log("Epoch: %d | Loss: %f" % (epoch, train_loss))
@@ -186,8 +186,8 @@ class FirstOrderOptimizer(Serializable):
                 if use_c_loss:
                     callback_args['c_loss'] = train_c_loss
                 if use_l_loss:
-                    callback_args['l_loss'] = train_l_loss                    
-                    
+                    callback_args['l_loss'] = train_l_loss
+
                 if val_loss is not None:
                     callback_args.update({'val_loss': val_loss})
                 if self._callback:
@@ -200,7 +200,7 @@ class FirstOrderOptimizer(Serializable):
             #last_loss = train_loss
 
 """
-optimizer = FOO(max_epochs= args.epochs, batch_size=args.batch_size, tolerance= 1e-6)    
+optimizer = FOO(max_epochs= args.epochs, batch_size=args.batch_size, tolerance= 1e-6)
 optimizer.update_opt(model.loss(reg= args.reg, cmx= args.cmx), model, [model.input_var], extra_inputs= [model.target_var],
                      like_loss= model.likelihood_loss(),
                      cmpx_loss= model.complexity_loss(args.reg, args.cmx))
@@ -215,13 +215,14 @@ class Solver(object):
     """
     Convenience class wrapping the first order optimizer
     """
-    def __init__(self, model, reg, cmx, max_epochs, batch_size, tolerance, callback= None):
-        self._optimizer = FirstOrderOptimizer(max_epochs= max_epochs, batch_size= batch_size, tolerance= tolerance)
+    def __init__(self, model, reg, cmx, max_epochs, batch_size, tolerance,
+                 tf_optimizer_cls= None, tf_optimizer_args= None, callback= None):
+        self._optimizer = FirstOrderOptimizer(max_epochs= max_epochs, batch_size= batch_size, tolerance= tolerance,
+                                              tf_optimizer_cls= tf_optimizer_cls, tf_optimizer_args= tf_optimizer_args)
         self._optimizer.update_opt(model.loss(reg= reg, cmx= cmx), model, [model.input_var], extra_inputs= [model.target_var],
                      like_loss= model.likelihood_loss(), cmpx_loss= model.complexity_loss(reg, cmx))
         self._callback = callback
-        
+
     def train(self, X_train, Y_train, X_validate= None, Y_validate= None):
-        self._optimizer.optimize([X_train], extra_inputs= tuple([Y_train]), callback= self._callback, 
+        self._optimizer.optimize([X_train], extra_inputs= tuple([Y_train]), callback= self._callback,
                                 val_inputs= [X_validate], val_extra_inputs= tuple([Y_validate]))
-        

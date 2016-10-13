@@ -113,7 +113,7 @@ class BatchPolopt(RLAlgorithm):
                     logger.log("Processing samples...")
                     samples_data = self.process_samples(itr, paths)
                     logger.log("Logging diagnostics...")
-                    self.log_diagnostics(paths)
+                    self.log_diagnostics(paths) # env, policy, baseline have individual log_diagnos methods for overriding
                     logger.log("Optimizing policy...")
                     self.optimize_policy(itr, samples_data)
                     logger.log("Saving snapshot...")

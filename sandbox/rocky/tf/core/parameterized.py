@@ -4,7 +4,10 @@
 from rllab.core.serializable import Serializable
 from rllab.misc.tensor_utils import flatten_tensors, unflatten_tensors
 import tensorflow as tf
+import numpy as np
 
+import h5py
+import os
 
 class Parameterized(object):
     def __init__(self):
@@ -95,3 +98,50 @@ class JointParameterized(Parameterized):
         params = [param for comp in self.components for param in comp.get_params_internal(**tags)]
         # only return unique parameters
         return sorted(set(params), key=hash)
+    
+
+class Model(Parameterized):
+    _model_dir = '../models/'
+    
+    def load_params(self, filename, itr):
+        filename = Model._model_dir + filename + '.h5'
+        assignments = []
+
+        with h5py.File(filename,'r') as hf:
+            if itr >= 0:
+                prefix = self._prefix(itr)
+            else:
+                prefix = hf.keys()[itr] + "/"           
+
+            for param in self.get_params():
+                path = prefix + param.name
+                if path in hf:
+                    assignments.append(
+                        param.assign(hf[path][...])
+                        )
+                    
+        sess = tf.get_default_session()
+        sess.run(assignments)
+            
+    
+    def save_params(self, filename, itr, overwrite= False):
+        filename = Model._model_dir + filename + '.h5'
+        sess = tf.get_default_session()
+            
+        key = self._prefix(itr)
+        with h5py.File(filename, 'a') as hf:
+            if key in hf:
+                dset = hf[key]
+            else:
+                dset = hf.create_group(key)
+
+            vs = self.get_params()
+            vals = sess.run(vs)
+
+            for v, val in zip(vs, vals):
+                dset[v.name] = val
+        
+    @staticmethod
+    def _prefix(x):
+        return 'iter{:05}/'.format(x)
+    

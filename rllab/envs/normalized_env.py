@@ -15,20 +15,33 @@ class NormalizedEnv(ProxyEnv, Serializable):
             scale_reward=1.,
             normalize_obs=False,
             normalize_reward=False,
+            running_obs=False,
+            running_reward=False,
             obs_alpha=0.001,
             reward_alpha=0.001,
+            initial_obs_mean=None,
+            initial_obs_var=None
     ):
         ProxyEnv.__init__(self, env)
         Serializable.quick_init(self, locals())
         self._scale_reward = scale_reward
         self._normalize_obs = normalize_obs
         self._normalize_reward = normalize_reward
+        self._running_obs = running_obs
+        self._running_reward = running_reward
         self._obs_alpha = obs_alpha
-        self._obs_mean = np.zeros(env.observation_space.flat_dim)
-        self._obs_var = np.ones(env.observation_space.flat_dim)
         self._reward_alpha = reward_alpha
         self._reward_mean = 0.
         self._reward_var = 1.
+
+        if initial_obs_mean is None:
+            self._obs_mean = np.zeros(env.observation_space.flat_dim)
+        else:
+            self._obs_mean = initial_obs_mean
+        if initial_obs_var is None:
+            self._obs_var = np.ones(env.observation_space.flat_dim)
+        else:
+            self._obs_var = initial_obs_var
 
     def _update_obs_estimate(self, obs):
         flat_obs = self.wrapped_env.observation_space.flatten(obs)
@@ -39,13 +52,14 @@ class NormalizedEnv(ProxyEnv, Serializable):
         self._reward_mean = (1 - self._reward_alpha) * self._reward_mean + self._reward_alpha * reward
         self._reward_var = (1 - self._reward_alpha) * self._reward_var + self._reward_alpha * np.square(reward -
                                                                                                         self._reward_mean)
-
     def _apply_normalize_obs(self, obs):
-        self._update_obs_estimate(obs)
+        if self._running_obs:
+            self._update_obs_estimate(obs)
         return (obs - self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
 
     def _apply_normalize_reward(self, reward):
-        self._update_reward_estimate(reward)
+        if self._running_reward:
+            self._update_reward_estimate(reward)
         return reward / (np.sqrt(self._reward_var) + 1e-8)
 
     def reset(self):

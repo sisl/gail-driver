@@ -48,9 +48,11 @@ def normalize(X, Y, normalize_targets= False, epsilon= 1e-6):
     
     return X, Y
 
-def rescale(X, Y, normalize_targets= False):
+def rescale(X, Y, normalize_targets= False, binarize= False):
     ## Normalize data
     X = (X - X.min())/(X.max() - X.min())
+    if binarize:
+        X = (X > 0.5).astype('float32')
     
     return X, Y
 
@@ -70,13 +72,14 @@ def permute_and_split(X, Y, p_train= 0.7):
     return X_t, Y_t, X_v, Y_v
 
 class Visualizer(object):
-    def __init__(self):
+    def __init__(self, enabled= True):
         self.tloss = {}
         self.vloss = {}
         self.closs = {}
         self.lloss = {}
         
         self.curr_model= ''
+        self._enabled= enabled
         
     def add_model(self, model_name):
         if not self.tloss.has_key(model_name):
@@ -102,9 +105,9 @@ class Visualizer(object):
         f, axs = plt.subplots(1, 5)
         for i, ax in enumerate(axs):
             ax.imshow(X[i])
-            
-        plt.show()
-        pass
+          
+        if self.enabled:  
+            plt.show()
         
     def plot(self):
         names= self.tloss.keys()
@@ -121,4 +124,14 @@ class Visualizer(object):
             
             ax2.plot(self.closs[name],'g')
             ax2.plot(self.lloss[name],'k')
-        plt.show()
+            
+        if self.enabled:
+            plt.show()
+            
+    @property
+    def enabled(self):
+        return self._enabled
+    
+    @enabled.setter
+    def enabled(self, value):
+        return value

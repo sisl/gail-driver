@@ -253,7 +253,8 @@ def log_parameters(log_file, args, classes):
 
 def stub_to_json(stub_sth):
     from rllab.misc import instrument
-    from rllab.misc import instrument2
+    # from rllab.misc import instrument2
+    from rllab.misc import instrument as instrument2 # I changed this ...
     if isinstance(stub_sth, instrument.StubObject) or isinstance(stub_sth, instrument2.StubObject):
         assert len(stub_sth.args) == 0
         data = dict()

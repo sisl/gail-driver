@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import itertools
 from rllab.core.serializable import Serializable
-from sandbox.rocky.tf.core.parameterized import Parameterized
+from sandbox.rocky.tf.core.parameterized import Parameterized, Model
 from sandbox.rocky.tf.core.layers_powered import LayersPowered
 
 from rllab.baselines.base import Baseline
@@ -12,7 +12,7 @@ from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.optimizers.first_order_optimizer import Solver
 from sandbox.rocky.tf.optimizers.lbfgs_optimizer import LbfgsOptimizer
 
-class NeuralNetwork(object):
+class NeuralNetwork(Model):
 
     def _predict(self, t, X):
         sess = tf.get_default_session()
@@ -40,13 +40,19 @@ class NeuralNetwork(object):
             loss = tf.reduce_mean(
                 0.5 * tf.square(outputs - self.target_var), name='like_loss'
             )
-
-        elif self.output_layer.nonlinearity == tf.sigmoid:
+            
+        elif self.output_layer.nonlinearity == tf.nn.sigmoid:
+            
             logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
-            loss = tf.reduce_mean(
-                tf.nn.softmax_cross_entropy_with_logits(logits, tf.squeeze(self.target_var))
-                )
+            sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.squeeze(self.target_var))
 
+            if sigmoid_loss.get_shape().ndims == 2:
+                loss = tf.reduce_mean(
+                    tf.reduce_sum(sigmoid_loss, reduction_indices= 1)
+                )
+            else:
+                loss = tf.reduce_mean(sigmoid_loss)
+            
         return loss
 
     def complexity_loss(self, reg, cmx):
@@ -127,9 +133,11 @@ class StochasticNetwork(NeuralNetwork):
             Y_p = np.argmax(mu_p,1)
         elif self.output_layer.nonlinearity == tf.identity:
             Y_p = mu_p
-
-        return Y_p
-
+        elif self.output_layer.nonlinearity == tf.nn.sigmoid:
+            Y_p = mu_p
+        
+        return Y_p 
+    
 
 class MLP(LayersPowered, Serializable, DeterministicNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
@@ -293,15 +301,14 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
                 if batch_normalization:
                     l_hid = L.batch_norm(l_hid)
                 self._layers.append(l_hid)
-            l_out = L.BayesLayer(
+            l_out = L.DenseLayer(
                 l_hid,
                 num_units=output_dim,
                 nonlinearity=output_nonlinearity,
                 name="output",
                 W=output_W_init,
                 b=output_b_init,
-                weight_normalization=weight_normalization,
-                reg_params= reg_params
+                weight_normalization=weight_normalization
             )
             if batch_normalization:
                 l_out = L.batch_norm(l_out)
@@ -315,13 +322,20 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
 
             LayersPowered.__init__(self, l_out)
 
-    def sample(self):
-        sess = tf.get_default_session()
-        l = sess.run(
-            L.get_output([layer for layer in self.layers], inputs= tf.random_uniform(self._l_in.input_shape))
-        )
 
-        return l[-1]
+    def generate(self, Z= None, prior_ix= -1):
+        # retrieve all layers receiving inputs from a LatentLayer       
+        encoders = [layer for layer in self.layers if type(layer) is L.LatentLayer]
+        sampling_layer = encoders[prior_ix]
+        if Z is None:
+            Z = tf.random_normal(sampling_layer.output_shape)
+        else:
+            Z = tf.constant(Z, dtype=tf.float32)
+        
+        sess = tf.get_default_session()
+        Y = sess.run(L.get_output(self.output_layer, inputs= {sampling_layer : Z}))
+        
+        return Y     
 
 class RewardMLP(MLP):
     """

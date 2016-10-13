@@ -41,7 +41,7 @@ parser.add_argument('--args_data',type=str)
 
 args = parser.parse_args()
 
-if True:
+if False:
     env_name = "Auto1D"
     env_id = "Auto1D-v0"
 else:
