@@ -100,7 +100,8 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 
 args = parser.parse_args()
 
-path = '/Users/alexkuefler/Desktop/stanford_dev/sum2016/rl-master/rltools/expert_trajs'
+from rl_filepaths import expert_trajs_path as path
+#path = '/Users/alexkuefler/Desktop/stanford_dev/sum2016/rl-master/rltools/expert_trajs'
 
 if args.hspec is None:
     p_hspec = args.p_hspec
