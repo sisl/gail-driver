@@ -1,5 +1,4 @@
-
-
+from contextlib import contextmanager
 
 from rllab.core.serializable import Serializable
 from rllab.misc.tensor_utils import flatten_tensors, unflatten_tensors
@@ -8,6 +7,16 @@ import numpy as np
 
 import h5py
 import os
+
+load_params = True
+
+@contextmanager
+def suppress_params_loading():
+    global load_params
+    load_params = False
+    yield
+    load_params = True
+
 
 class Parameterized(object):
     def __init__(self):
@@ -80,13 +89,17 @@ class Parameterized(object):
 
     def __getstate__(self):
         d = Serializable.__getstate__(self)
-        d["params"] = self.get_param_values()
+        global load_params
+        if load_params:
+            d["params"] = self.get_param_values()
         return d
 
     def __setstate__(self, d):
         Serializable.__setstate__(self, d)
-        tf.get_default_session().run(tf.initialize_variables(self.get_params()))
-        self.set_param_values(d["params"])
+        global load_params
+        if load_params:
+            tf.get_default_session().run(tf.initialize_variables(self.get_params()))
+            self.set_param_values(d["params"])
 
 
 class JointParameterized(Parameterized):

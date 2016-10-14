@@ -21,7 +21,7 @@ rllab is fully compatible with [OpenAI Gym](https://gym.openai.com/). See [here]
 
 rllab only officially supports Python 3.5+. For an older snapshot of rllab sitting on Python 2, please use the [py2 branch](https://github.com/rllab/rllab/tree/py2).
 
-rllab comes with support for running reinforcement learning experiments on an EC2 cluster, and tools for visualizing the results. See the [documentation](https://rllab.readthedocs.io/en/latest/user/cluster.htm://rllab.readthedocs.io/en/latest/user/cluster.html) for details.
+rllab comes with support for running reinforcement learning experiments on an EC2 cluster, and tools for visualizing the results. See the [documentation](https://rllab.readthedocs.io/en/latest/user/cluster.html) for details.
 
 # Documentation
 
@@ -32,6 +32,10 @@ Documentation is available online: [https://rllab.readthedocs.org/en/latest/](ht
 If you use rllab for academic research, you are highly encouraged to cite the following paper:
 
 - Yan Duan, Xi Chen, Rein Houthooft, John Schulman, Pieter Abbeel. "[Benchmarking Deep Reinforcement Learning for Continuous Control](http://arxiv.org/abs/1604.06778)". _Proceedings of the 33rd International Conference on Machine Learning (ICML), 2016._
+
+# Credits
+
+rllab was originally developed by Rocky Duan (UC Berkeley / OpenAI), Peter Chen (UC Berkeley), Rein Houthooft (UC Berkeley / OpenAI), John Schulman (UC Berkeley / OpenAI), and Pieter Abbeel (UC Berkeley / OpenAI). The library is continued to be jointly developed by people at OpenAI and UC Berkeley.
 
 # Slides
 
