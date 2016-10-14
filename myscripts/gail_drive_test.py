@@ -229,12 +229,12 @@ algo = GAIL(
 date= calendar.datetime.date.today().strftime('%y-%m-%d')
 
 c = 0
-exp_name = args.exp_name + '-'+str(c) + '-' + date
-while exp_name in os.listdir('../data'):
+exp_name = args.exp_name + '-'+str(c)
+while exp_name in os.listdir('../data/'+date+'/'):
     c += 1
-    exp_name = args.exp_name + '-'+str(c)+'-' + date
+    exp_name = args.exp_name + '-'+str(c)
 
-runner = RLLabRunner(algo,args, exp_name)
+runner = RLLabRunner(algo,args, date+'/'+exp_name)
 runner.train()
 
 halt= True
