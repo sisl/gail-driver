@@ -4,7 +4,7 @@ import os.path as osp
 
 class RLLabRunner(object):
 
-    def __init__(self, algo, args):
+    def __init__(self, algo, args, exp_name):
         self.args = args
         self.algo = algo
 
@@ -14,7 +14,7 @@ class RLLabRunner(object):
         # Logger
         default_log_dir = config.LOG_DIR
         if args.log_dir is None:
-            log_dir = osp.join(default_log_dir, args.exp_name)
+            log_dir = osp.join(default_log_dir, exp_name)
         else:
             log_dir = args.log_dir
 
@@ -28,7 +28,7 @@ class RLLabRunner(object):
         logger.set_snapshot_dir(log_dir)
         logger.set_snapshot_mode(args.snapshot_mode)
         logger.set_log_tabular_only(args.log_tabular_only)
-        logger.push_prefix("[%s] " % args.exp_name)
+        logger.push_prefix("[%s] " % exp_name)
 
         prev_snapshot_dir = logger.get_snapshot_dir()
         prev_mode = logger.get_snapshot_mode()
