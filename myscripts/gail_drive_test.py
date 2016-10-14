@@ -1,5 +1,6 @@
 import gym
 import argparse
+import calendar
 
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.envs.box2d.box2d_env import Box2DEnv
@@ -29,6 +30,7 @@ from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGr
 
 import tensorflow as tf
 import numpy as np
+import os
 
 parser = argparse.ArgumentParser()
 # Logger Params
@@ -101,7 +103,6 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 args = parser.parse_args()
 
 from rl_filepaths import expert_trajs_path as path
-#path = '/Users/alexkuefler/Desktop/stanford_dev/sum2016/rl-master/rltools/expert_trajs'
 
 if args.hspec is None:
     p_hspec = args.p_hspec
@@ -225,7 +226,15 @@ algo = GAIL(
     optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
 )
 
-runner = RLLabRunner(algo,args)
+date= calendar.datetime.date.today().strftime('%y-%m-%d')
+
+c = 0
+exp_name = args.exp_name + '-'+str(c) + '-' + date
+while exp_name in os.listdir('../data'):
+    c += 1
+    exp_name = args.exp_name + '-'+str(c)+'-' + date
+
+runner = RLLabRunner(algo,args, exp_name)
 runner.train()
 
 halt= True
