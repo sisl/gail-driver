@@ -234,6 +234,8 @@ while exp_name in os.listdir('../data/'+date+'/'):
     c += 1
     exp_name = args.exp_name + '-'+str(c)
 
+if date not in os.listdir('../data'):
+    os.mkdir('../data/'+date)
 runner = RLLabRunner(algo,args, date+'/'+exp_name)
 runner.train()
 
