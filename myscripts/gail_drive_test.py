@@ -87,6 +87,8 @@ parser.add_argument('--vf_cg_damping', type=float, default=0.01)
 
 parser.add_argument('--trpo_step_size',type=float,default=0.1)
 
+parser.add_argument('--only_trpo',type=bool,default=False)
+
 # GAILS Params
 parser.add_argument('--gail_batch_size', type=int, default= 1024)
 
@@ -202,29 +204,44 @@ reward = RewardMLP('mlp_reward', 1, r_hspec, tf.nn.tanh,tf.nn.sigmoid,
                        input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
                        )
 
-algo = GAIL(
-    env=env,
-    policy=policy,
-    baseline=baseline,
-    reward=reward,
-    expert_data=expert_data,
-    batch_size= args.trpo_batch_size,
-    gail_batch_size=args.gail_batch_size,
-    max_path_length=args.max_traj_len,
-    n_itr=args.n_iter,
-    discount=args.discount,
-    #step_size=0.01,
-    step_size=args.trpo_step_size,
-    force_batch_sampler= True,
-    whole_paths= True,
-    adam_steps= args.adam_steps,
-    fo_optimizer_cls= tf.train.AdamOptimizer,
-    fo_optimizer_args= dict(learning_rate = args.adam_lr,
-                            beta1 = args.adam_beta1,
-                            beta2 = args.adam_beta2,
-                            epsilon= args.adam_epsilon),
-    optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
-)
+if not args.only_trpo:
+    algo = GAIL(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        reward=reward,
+        expert_data=expert_data,
+        batch_size= args.trpo_batch_size,
+        gail_batch_size=args.gail_batch_size,
+        max_path_length=args.max_traj_len,
+        n_itr=args.n_iter,
+        discount=args.discount,
+        #step_size=0.01,
+        step_size=args.trpo_step_size,
+        force_batch_sampler= True,
+        whole_paths= True,
+        adam_steps= args.adam_steps,
+        fo_optimizer_cls= tf.train.AdamOptimizer,
+        fo_optimizer_args= dict(learning_rate = args.adam_lr,
+                                beta1 = args.adam_beta1,
+                                beta2 = args.adam_beta2,
+                                epsilon= args.adam_epsilon),
+        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
+    )
+else:
+    print("TRPO Only.")
+    algo = TRPO(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        batch_size=args.trpo_batch_size,
+        max_path_length=args.gail_batch_size,
+        n_itr=args.n_iter,
+        discount=args.discount,
+        step_size=args.trpo_step_size,
+        force_batch_sampler= True,
+        whole_paths= True,
+        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)))
 
 date= calendar.datetime.date.today().strftime('%y-%m-%d')
 if date not in os.listdir('../data'):
