@@ -199,7 +199,7 @@ else:
 
 # create adversary
 reward = RewardMLP('mlp_reward', 1, r_hspec, tf.nn.tanh,tf.nn.sigmoid,
-                       input_shape= (np.prod(env.spec.observation_space.shape) + 1,)
+                       input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
                        )
 
 algo = GAIL(
