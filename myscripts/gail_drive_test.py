@@ -116,14 +116,11 @@ else:
     r_hspec = args.hspec
 
 if args.env_name == 'Following':
-    r_fn = lambda x : np.abs(x - args.following_distance)
-    env = DriveEnv_1D(reward_fn= r_fn)
 
     env_id = "Following-v0"
 
     FollowingWrapper.set_initials(args.following_distance)
 
-    env = DriveEnv_1D(reward_fn= r_fn)
     gym.envs.register(
         id=env_id,
         entry_point='rltools.envs.julia_sim:FollowingWrapper',
