@@ -172,6 +172,7 @@ class GAIL(TRPO):
     def process_samples(self, itr, paths):
         for path in paths:
             X = np.column_stack((path['observations'],path['actions']))
+            path['env_rewards'] = path['rewards']
             rewards = np.squeeze( self.reward_model.compute_reward(X) )
             if rewards.ndim == 0:
                 rewards = rewards[np.newaxis]

@@ -125,7 +125,6 @@ if args.env_name == 'Following':
 
     FollowingWrapper.set_initials(args.following_distance)
 
-    env = DriveEnv_1D(reward_fn= r_fn)
     gym.envs.register(
         id=env_id,
         entry_point='rltools.envs.julia_sim:FollowingWrapper',

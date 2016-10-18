@@ -48,6 +48,7 @@ class BaseSampler(Sampler):
     def process_samples(self, itr, paths):
         baselines = []
         returns = []
+        env_returns = []
 
         if hasattr(self.algo.baseline, "predict_n"):
             all_path_baselines = self.algo.baseline.predict_n(paths)
@@ -64,6 +65,9 @@ class BaseSampler(Sampler):
             path["returns"] = special.discount_cumsum(path["rewards"], self.algo.discount)
             baselines.append(path_baselines[:-1])
             returns.append(path["returns"])
+            if path.has_key("env_rewards"):
+                path["env_returns"] = special.discount_cumsum(path["env_rewards"], self.algo.discount)
+                env_returns.append(path["env_returns"])
 
         ev = special.explained_variance_1d(
             np.concatenate(baselines),
@@ -79,6 +83,8 @@ class BaseSampler(Sampler):
             env_infos = tensor_utils.concat_tensor_dict_list([path["env_infos"] for path in paths])
             agent_infos = tensor_utils.concat_tensor_dict_list([path["agent_infos"] for path in paths])
 
+            env_returns = [path["env_rewards"] for path in paths if path.has_key("env_rewards")]
+
             if self.algo.center_adv:
                 advantages = util.center_advantages(advantages)
 
@@ -88,7 +94,11 @@ class BaseSampler(Sampler):
             average_discounted_return = \
                 np.mean([path["returns"][0] for path in paths])
 
+            average_discounted_env_return = \
+                np.mean([path["env_returns"][0] for path in paths if path.has_key("env_returns")]) # why zero?
+
             undiscounted_returns = [sum(path["rewards"]) for path in paths]
+            undiscounted_env_returns = [sum(path["env_rewards"]) for path in paths if path.has_key("env_rewards")]
 
             ent = np.mean(self.algo.policy.distribution.entropy(agent_infos))
 
@@ -128,6 +138,9 @@ class BaseSampler(Sampler):
             returns = [path["returns"] for path in paths]
             returns = tensor_utils.pad_tensor_n(returns, max_path_length)
 
+            env_returns = [path["env_rewards"] for path in paths if path.has_key("env_rewards")]
+            env_returns = tensor_utils.pad_tensor_n(env_returns, max_path_length)
+
             agent_infos = [path["agent_infos"] for path in paths]
             agent_infos = tensor_utils.stack_tensor_dict_list(
                 [tensor_utils.pad_tensor_dict(p, max_path_length) for p in agent_infos]
@@ -144,7 +157,11 @@ class BaseSampler(Sampler):
             average_discounted_return = \
                 np.mean([path["returns"][0] for path in paths])
 
+            average_discounted_env_return = \
+                np.mean([path["env_returns"][0] for path in paths])
+
             undiscounted_returns = [sum(path["rewards"]) for path in paths]
+            undiscounted_env_returns = [sum(path["env_rewards"]) for path in paths if path.has_key("env_rewards")]
 
             ent = np.sum(self.algo.policy.distribution.entropy(agent_infos) * valids) / np.sum(valids)
 
@@ -170,7 +187,13 @@ class BaseSampler(Sampler):
         logger.record_tabular('Iteration', itr)
         logger.record_tabular('AverageDiscountedReturn',
                               average_discounted_return)
+        if not np.isnan(average_discounted_env_return):
+            logger.record_tabular("AverageDiscountedEnvReturn",
+                                  average_discounted_env_return)
         logger.record_tabular('AverageReturn', np.mean(undiscounted_returns))
+        if not np.isnan(np.mean(undiscounted_env_returns)):
+            logger.record_tabular('AverageEnvReturn', np.mean(undiscounted_env_returns))
+
         logger.record_tabular('ExplainedVariance', ev)
         logger.record_tabular('NumTrajs', len(paths))
         logger.record_tabular('Entropy', ent)
@@ -178,5 +201,10 @@ class BaseSampler(Sampler):
         logger.record_tabular('StdReturn', np.std(undiscounted_returns))
         logger.record_tabular('MaxReturn', np.max(undiscounted_returns))
         logger.record_tabular('MinReturn', np.min(undiscounted_returns))
+
+        if undiscounted_env_returns != []:
+            logger.record_tabular('StdEnvReturn', np.std(undiscounted_env_returns))
+            logger.record_tabular('MaxEnvReturn', np.max(undiscounted_env_returns))
+            logger.record_tabular('MinEnvReturn', np.min(undiscounted_env_returns))
 
         return samples_data
