@@ -2,9 +2,10 @@
 
 
 from sandbox.rocky.tf.core.parameterized import Parameterized
+from sandbox.rocky.tf.core.parameterized import Model
 
 
-class Policy(Parameterized):
+class Policy(Model):
     def __init__(self, env_spec):
         Parameterized.__init__(self)
         self._env_spec = env_spec

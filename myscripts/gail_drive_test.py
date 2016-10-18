@@ -57,6 +57,9 @@ parser.add_argument('--render',type=bool, default= False)
 
 # Model Params
 parser.add_argument('--policy_type',type=str,default='mlp')
+parser.add_argument('--policy_save_name',type=str,default='policy_gail')
+parser.add_argument('--policy_ckpt_name',type=str,default=None)
+parser.add_argument('--policy_ckpt_itr',type=int,default=1)
 parser.add_argument('--baseline_type',type=str,default='mlp')
 parser.add_argument('--reward_type',type=str,default='mlp')
 parser.add_argument('--load_policy',type=bool,default=False)
@@ -174,6 +177,9 @@ env = TfEnv(g_env) # this works
 if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
                                std_hidden_nonlinearity=tf.nn.tanh,hidden_nonlinearity=tf.nn.tanh)
+    if args.policy_ckpt_name is not None:
+      with tf.Session() as sess:
+        policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
     feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, tf.nn.tanh, tf.nn.tanh,
@@ -184,6 +190,9 @@ elif args.policy_type == 'gru':
                               state_include_action=False)
 else:
     raise NotImplementedError
+
+# TODO: Add naming convention
+policy.save_name = args.policy_save_name
 
 # create baseline
 if args.baseline_type == 'linear':
