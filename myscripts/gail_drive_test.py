@@ -50,7 +50,7 @@ parser.add_argument('--limit_trajs',type=int,default=12000)
 parser.add_argument('--max_traj_len',type=int,default=100)  # max length of a trajectory (ts)
 parser.add_argument('--env_name',type=str,default="Following")
 #parser.add_argument('--args_data',type=str)
-parser.add_argument('--following_distance',type=int,default=20)
+parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize',type=bool,default= True)
 
 parser.add_argument('--render',type=bool, default= False)
@@ -116,9 +116,11 @@ else:
     r_hspec = args.hspec
 
 if args.env_name == 'Following':
-    r_fn = lambda x : np.abs(x - args.following_distance)
-    env = DriveEnv_1D(reward_fn= r_fn)
 
+    r_fn = lambda x : np.abs(x - args.following_distance)
+    # print "here"
+    # env = DriveEnv_1D(reward_fn= r_fn)
+    # print "here"
     env_id = "Following-v0"
 
     FollowingWrapper.set_initials(args.following_distance)
