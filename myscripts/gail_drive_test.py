@@ -107,7 +107,7 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 
 args = parser.parse_args()
 
-from rl_filepaths import expert_trajs_path as path
+from rl_filepaths import expert_trajs_path, rrlab_path
 
 if args.hspec is None:
     p_hspec = args.p_hspec
@@ -135,14 +135,14 @@ if args.env_name == 'Following':
         reward_threshold=195.0,
     )
 
-    expert_data_path = path + '/one_d/matchdist_n3000_t150_f3_d{}.h5'.format(args.following_distance)
+    expert_data_path = expert_trajs_path + '/one_d/matchdist_n3000_t150_f3_d{}.h5'.format(args.following_distance)
 
     SWAP= True
 
 elif args.env_name == "Auto2D":
     env_id = "Auto2D-v0"
 
-    expert_data_path = path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
+    expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
         args.n_features,''.join([str(n) for n in args.trajdatas]))
 
     env_dict = {'trajdata_indeces': args.trajdatas}
@@ -187,8 +187,8 @@ if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
                                std_hidden_nonlinearity=tf.nn.tanh,hidden_nonlinearity=tf.nn.tanh)
     if args.policy_ckpt_name is not None:
-      with tf.Session() as sess:
-        policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
+        with tf.Session() as sess:
+            policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
     feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, tf.nn.tanh, tf.nn.tanh,
@@ -250,13 +250,6 @@ if not args.only_trpo:
 else:
     print("TRPO Only.")
 
-    baseline=baseline,
-    batch_size=4000,
-    max_path_length=100,
-    n_itr=40,
-    discount=0.99,
-    step_size=0.01,
-
     algo = TRPO(
         env=env,
         policy=policy,
@@ -271,13 +264,13 @@ else:
         optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)))
 
 date= calendar.datetime.date.today().strftime('%y-%m-%d')
-if date not in os.listdir('../data'):
-    os.mkdir('../data/'+date)
+if date not in os.listdir(rrlab_path+'/data'):
+    os.mkdir(rrlab_path+'/data/'+date)
 
 c = 0
 exp_name = args.exp_name + '-'+str(c)
 
-while exp_name in os.listdir('../data/'+date+'/'):
+while exp_name in os.listdir(rrlab_path+'/data/'+date+'/'):
     c += 1
     exp_name = args.exp_name + '-'+str(c)
 
