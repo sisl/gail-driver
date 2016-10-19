@@ -120,54 +120,6 @@ class GAIL(TRPO):
 
         return dict()
 
-#    def fit(self, sess, obs_pi, act_pi, obs_ex, act_ex):
-        #trans_Bpi_Do = np.column_stack((obs_pi,act_pi))
-        #trans_Bex_Do = np.column_stack((obs_ex,act_ex))
-        #trans_B_Do = np.row_stack((trans_Bpi_Do,trans_Bex_Do))
-
-        ##Normalize obs and acts together.
-        #self.transnorm.update(trans_B_Do, sess= sess)
-        #strans_B_Do = self.transnorm.standardize(trans_B_Do, sess= sess)
-
-        #Bpi = trans_Bpi_Do.shape[0] # policy batch size.
-        #Bex = trans_Bex_Do.shape[0] # expert batch size.
-
-        #assert Bpi == Bex
-
-        #labels= np.concatenate((np.zeros(Bpi), np.ones(Bex))) # 0s for policy, 1s for expert
-        #weights=np.concatenate((np.ones(Bpi)/Bpi, np.ones(Bex)/Bex))
-
-        ##What is Df versus Do?
-        #feed = {self.transfeat_B_Df: strans_B_Do,
-                #self.targets_B: labels,
-                #self.weights_B: weights}
-        ##if z_pi is not None and z_ex is not None:
-            ##zfeat_B_z = np.row_stack((z_pi, z_ex))
-            ##feed[self._zfeat_B_z]= zfeat_B_z
-
-        #for _ in range(self._adam_steps):
-            #loss, optout, scores, reward = sess.run([self.obj, self._adam_opt, self.scores_B, self.rew_B], feed)
-
-        ##Update decay variables
-        #self.global_step += 1
-
-        #accuracy = .5 * (weights * ((scores < 0) == (labels == 0))).sum()
-        #accuracy_for_currpolicy = (scores[:Bpi] <= 0).mean()
-        #accuracy_for_expert = (scores[Bpi:] > 0).mean()
-        #assert np.allclose(accuracy, .5*(accuracy_for_currpolicy + accuracy_for_expert))
-
-        ## assign a new mean activation on expert data
-        #mu_ex = tf.reduce_sum(self.matching_layer * tf.expand_dims(self.targets_B,-1),
-                              #reduction_indices= 0) / tf.reduce_sum(self.targets_B)
-        #sess.run(self.mu_ex.assign(mu_ex), feed)
-
-        #return [
-            #('rloss', loss, float), # reward function fitting loss
-            #('racc', accuracy, float), # reward function accuracy
-            #('raccpi', accuracy_for_currpolicy, float), # reward function accuracy
-            #('raccex', accuracy_for_expert, float), # reward function accuracy
-        #]
-
     @overrides
     def process_samples(self, itr, paths):
         for path in paths:
@@ -177,6 +129,8 @@ class GAIL(TRPO):
             if rewards.ndim == 0:
                 rewards = rewards[np.newaxis]
             path['rewards'] = rewards
+
+        assert all([path['rewards'].ndim == 1 for path in paths])
 
         return self.sampler.process_samples(itr, paths)
 

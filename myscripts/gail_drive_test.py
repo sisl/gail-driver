@@ -85,7 +85,7 @@ parser.add_argument('--max_kl', type=float, default=0.01)
 parser.add_argument('--vf_max_kl', type=float, default=0.01)
 parser.add_argument('--vf_cg_damping', type=float, default=0.01)
 
-parser.add_argument('--trpo_step_size',type=float,default=0.1)
+parser.add_argument('--trpo_step_size',type=float,default=0.01)
 
 parser.add_argument('--only_trpo',type=bool,default=False)
 
@@ -149,14 +149,23 @@ elif args.env_name == "Auto2D":
 
     SWAP= False
 
-expert_data, expert_stats = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = SWAP)
+expert_data, _ = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = SWAP)
 expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], expert_data['exa_B_T_Da'], expert_data['exlen_B'],
                                                   labeller= None)
-expert_data = {'obs':expert_data_stacked['exobs_Bstacked_Do'],
-               'act':expert_data_stacked['exa_Bstacked_Da']}
 
-initial_obs_mean = expert_stats['obs_mean']
-initial_obs_var = np.square(expert_stats['obs_std'])
+initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
+initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
+initial_obs_var = np.square(initial_obs_std)
+
+if args.normalize:
+    # WARNING: currently only computing this for the OBSERVATIONS not ACTIONS.
+    expert_data = {'obs':(expert_data_stacked['exobs_Bstacked_Do'] - initial_obs_mean) / (initial_obs_std + 1e-8),
+                   'act':expert_data_stacked['exa_Bstacked_Da']}
+
+    #(obs - self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
+else:
+    expert_data = {'obs':expert_data_stacked['exobs_Bstacked_Do'],
+                   'act':expert_data_stacked['exa_Bstacked_Da']}
 
 g_env = normalize(GymEnv(env_id),
                   initial_obs_mean= initial_obs_mean,
@@ -227,12 +236,20 @@ if not args.only_trpo:
     )
 else:
     print("TRPO Only.")
+
+    baseline=baseline,
+    batch_size=4000,
+    max_path_length=100,
+    n_itr=40,
+    discount=0.99,
+    step_size=0.01,
+
     algo = TRPO(
         env=env,
         policy=policy,
         baseline=baseline,
         batch_size=args.trpo_batch_size,
-        max_path_length=args.gail_batch_size,
+        max_path_length=args.max_traj_len,
         n_itr=args.n_iter,
         discount=args.discount,
         step_size=args.trpo_step_size,
