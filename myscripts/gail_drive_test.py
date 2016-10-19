@@ -50,13 +50,16 @@ parser.add_argument('--limit_trajs',type=int,default=12000)
 parser.add_argument('--max_traj_len',type=int,default=100)  # max length of a trajectory (ts)
 parser.add_argument('--env_name',type=str,default="Following")
 #parser.add_argument('--args_data',type=str)
-parser.add_argument('--following_distance',type=int,default=20)
+parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize',type=bool,default= True)
 
 parser.add_argument('--render',type=bool, default= False)
 
 # Model Params
 parser.add_argument('--policy_type',type=str,default='mlp')
+parser.add_argument('--policy_save_name',type=str,default='policy_gail')
+parser.add_argument('--policy_ckpt_name',type=str,default=None)
+parser.add_argument('--policy_ckpt_itr',type=int,default=1)
 parser.add_argument('--baseline_type',type=str,default='mlp')
 parser.add_argument('--reward_type',type=str,default='mlp')
 parser.add_argument('--load_policy',type=bool,default=False)
@@ -117,6 +120,10 @@ else:
 
 if args.env_name == 'Following':
 
+    r_fn = lambda x : np.abs(x - args.following_distance)
+    # print "here"
+    # env = DriveEnv_1D(reward_fn= r_fn)
+    # print "here"
     env_id = "Following-v0"
 
     FollowingWrapper.set_initials(args.following_distance)
@@ -179,6 +186,9 @@ env = TfEnv(g_env) # this works
 if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
                                std_hidden_nonlinearity=tf.nn.tanh,hidden_nonlinearity=tf.nn.tanh)
+    if args.policy_ckpt_name is not None:
+      with tf.Session() as sess:
+        policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
     feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, tf.nn.tanh, tf.nn.tanh,
@@ -189,6 +199,9 @@ elif args.policy_type == 'gru':
                               state_include_action=False)
 else:
     raise NotImplementedError
+
+# TODO: Add naming convention
+policy.save_name = args.policy_save_name
 
 # create baseline
 if args.baseline_type == 'linear':

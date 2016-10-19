@@ -25,6 +25,7 @@ class Parameterized(object):
         self._cached_param_shapes = {}
         self._cached_assign_ops = {}
         self._cached_assign_placeholders = {}
+        self.save_name = 'policy_gail'
 
     def get_params_internal(self, **tags):
         """
@@ -114,9 +115,10 @@ class JointParameterized(Parameterized):
     
 
 class Model(Parameterized):
-    _model_dir = '../models/'
+    _model_dir = './models/'
     
     def load_params(self, filename, itr):
+        print 'loading policy params...'
         filename = Model._model_dir + filename + '.h5'
         assignments = []
 
@@ -135,10 +137,12 @@ class Model(Parameterized):
                     
         sess = tf.get_default_session()
         sess.run(assignments)
+        print 'done.'
             
     
-    def save_params(self, filename, itr, overwrite= False):
-        filename = Model._model_dir + filename + '.h5'
+    def save_params(self, itr, overwrite= False):
+        print 'saving model...'
+        filename = Model._model_dir + self.save_name + '.h5'
         sess = tf.get_default_session()
             
         key = self._prefix(itr)
@@ -153,6 +157,7 @@ class Model(Parameterized):
 
             for v, val in zip(vs, vals):
                 dset[v.name] = val
+        print 'done.'
         
     @staticmethod
     def _prefix(x):
