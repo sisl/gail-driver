@@ -112,21 +112,25 @@ class JointParameterized(Parameterized):
         params = [param for comp in self.components for param in comp.get_params_internal(**tags)]
         # only return unique parameters
         return sorted(set(params), key=hash)
-    
+
 
 class Model(Parameterized):
     _model_dir = './models/'
-    
+
     def load_params(self, filename, itr):
         print 'loading policy params...'
-        filename = Model._model_dir + filename + '.h5'
+        if not hasattr(self, 'log_dir'):
+            log_dir = _model_dir
+        else:
+            log_dir = self.log_dir
+        filename = log_dir + "/" + filename + '.h5'
         assignments = []
 
         with h5py.File(filename,'r') as hf:
             if itr >= 0:
                 prefix = self._prefix(itr)
             else:
-                prefix = hf.keys()[itr] + "/"           
+                prefix = hf.keys()[itr] + "/"
 
             for param in self.get_params():
                 path = prefix + param.name
@@ -134,17 +138,21 @@ class Model(Parameterized):
                     assignments.append(
                         param.assign(hf[path][...])
                         )
-                    
+
         sess = tf.get_default_session()
         sess.run(assignments)
         print 'done.'
-            
-    
+
+
     def save_params(self, itr, overwrite= False):
         print 'saving model...'
-        filename = Model._model_dir + self.save_name + '.h5'
+        if not hasattr(self, 'log_dir'):
+            log_dir = _model_dir
+        else:
+            log_dir = self.log_dir
+        filename = log_dir + "/" + self.save_name + '.h5'
         sess = tf.get_default_session()
-            
+
         key = self._prefix(itr)
         with h5py.File(filename, 'a') as hf:
             if key in hf:
@@ -158,8 +166,10 @@ class Model(Parameterized):
             for v, val in zip(vs, vals):
                 dset[v.name] = val
         print 'done.'
-        
+
+    def set_log_dir(self, log_dir):
+        self.log_dir = log_dir
+
     @staticmethod
     def _prefix(x):
         return 'iter{:05}/'.format(x)
-    

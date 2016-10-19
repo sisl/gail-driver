@@ -32,6 +32,9 @@ import tensorflow as tf
 import numpy as np
 import os
 
+import os.path as osp
+from rllab import config
+
 parser = argparse.ArgumentParser()
 # Logger Params
 parser.add_argument('--exp_name',type=str,default='my_exp')
@@ -274,7 +277,12 @@ while exp_name in os.listdir(rllab_path+'/data/'+date+'/'):
     c += 1
     exp_name = args.exp_name + '-'+str(c)
 
-runner = RLLabRunner(algo,args, date+'/'+exp_name)
+exp_dir = date+'/'+exp_name
+log_dir = osp.join(config.LOG_DIR, exp_dir)
+policy.set_log_dir(log_dir)
+
+log_dir = osp.join(config.LOG_DIR, exp_dir)
+runner = RLLabRunner(algo,args, exp_dir)
 runner.train()
 
 halt= True
