@@ -107,7 +107,7 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 
 args = parser.parse_args()
 
-from rl_filepaths import expert_trajs_path, rrlab_path
+from rl_filepaths import expert_trajs_path, rllab_path
 
 if args.hspec is None:
     p_hspec = args.p_hspec
@@ -264,13 +264,13 @@ else:
         optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5)))
 
 date= calendar.datetime.date.today().strftime('%y-%m-%d')
-if date not in os.listdir(rrlab_path+'/data'):
-    os.mkdir(rrlab_path+'/data/'+date)
+if date not in os.listdir(rllab_path+'/data'):
+    os.mkdir(rllab_path+'/data/'+date)
 
 c = 0
 exp_name = args.exp_name + '-'+str(c)
 
-while exp_name in os.listdir(rrlab_path+'/data/'+date+'/'):
+while exp_name in os.listdir(rllab_path+'/data/'+date+'/'):
     c += 1
     exp_name = args.exp_name + '-'+str(c)
 
