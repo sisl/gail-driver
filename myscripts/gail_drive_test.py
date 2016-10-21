@@ -167,8 +167,8 @@ initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
 initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
 initial_obs_var = np.square(initial_obs_std)
 
-initial_act_mean = expert_data_stacked['exa_Bstack_Da'].mean(axis= 0)
-initial_act_std = expert_data_stacked['exa_Bstack_Da'].std(axis= 0)
+initial_act_mean = expert_data_stacked['exa_Bstacked_Da'].mean(axis= 0)
+initial_act_std = expert_data_stacked['exa_Bstacked_Da'].std(axis= 0)
 
 if args.normalize:
     # WARNING: currently only computing this for the OBSERVATIONS not ACTIONS.
