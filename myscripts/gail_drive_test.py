@@ -55,6 +55,7 @@ parser.add_argument('--env_name',type=str,default="Following")
 #parser.add_argument('--args_data',type=str)
 parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize',type=bool,default= True)
+parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
 parser.add_argument('--render',type=bool, default= False)
 
@@ -104,6 +105,8 @@ parser.add_argument('--adam_lr', type=float, default=0.00005)
 parser.add_argument('--adam_beta1',type=float,default=0.9)
 parser.add_argument('--adam_beta2',type=float,default=0.99)
 parser.add_argument('--adam_epsilon',type=float,default=1e-8)
+parser.add_argument('--decay_steps',type=int,default=0)
+parser.add_argument('--decay_rate',type=int,default=1.0)
 
 parser.add_argument('--policy_ent_reg', type=float, default=0.0)
 parser.add_argument('--env_r_weight',type=float,default=0.0)
@@ -123,10 +126,6 @@ else:
 
 if args.env_name == 'Following':
 
-    r_fn = lambda x : np.abs(x - args.following_distance)
-    # print "here"
-    # env = DriveEnv_1D(reward_fn= r_fn)
-    # print "here"
     env_id = "Following-v0"
 
     FollowingWrapper.set_initials(args.following_distance)
@@ -148,7 +147,8 @@ elif args.env_name == "Auto2D":
     expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
         args.n_features,''.join([str(n) for n in args.trajdatas]))
 
-    env_dict = {'trajdata_indeces': args.trajdatas}
+    env_dict = {'trajdata_indeces': args.trajdatas,
+                'use_playback_reactive': args.use_playback_reactive}
     JuliaEnvWrapper.set_initials(args.env_name, 1, {})
     gym.envs.register(
         id=env_id,
@@ -167,10 +167,13 @@ initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
 initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
 initial_obs_var = np.square(initial_obs_std)
 
+initial_act_mean = expert_data_stacked['exa_Bstack_Da'].mean(axis= 0)
+initial_act_std = expert_data_stacked['exa_Bstack_Da'].std(axis= 0)
+
 if args.normalize:
     # WARNING: currently only computing this for the OBSERVATIONS not ACTIONS.
     expert_data = {'obs':(expert_data_stacked['exobs_Bstacked_Do'] - initial_obs_mean) / (initial_obs_std + 1e-8),
-                   'act':expert_data_stacked['exa_Bstacked_Da']}
+                   'act':(expert_data_stacked['exa_Bstacked_Da'] - initial_act_mean) / (initial_act_std + 1e-8)}
 
     #(obs - self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
 else:
@@ -243,6 +246,10 @@ if not args.only_trpo:
         force_batch_sampler= True,
         whole_paths= True,
         adam_steps= args.adam_steps,
+        decay_rate= args.decay_rate,
+        decay_steps= args.decay_steps,
+        act_mean= initial_act_mean,
+        act_std= initial_act_std,
         fo_optimizer_cls= tf.train.AdamOptimizer,
         fo_optimizer_args= dict(learning_rate = args.adam_lr,
                                 beta1 = args.adam_beta1,

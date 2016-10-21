@@ -120,7 +120,7 @@ class Model(Parameterized):
     def load_params(self, filename, itr):
         print 'loading policy params...'
         if not hasattr(self, 'log_dir'):
-            log_dir = _model_dir
+            log_dir = Model._model_dir
         else:
             log_dir = self.log_dir
         filename = log_dir + "/" + filename + '.h5'
@@ -147,7 +147,7 @@ class Model(Parameterized):
     def save_params(self, itr, overwrite= False):
         print 'saving model...'
         if not hasattr(self, 'log_dir'):
-            log_dir = _model_dir
+            log_dir = Model._model_dir
         else:
             log_dir = self.log_dir
         filename = log_dir + "/" + self.save_name + '.h5'
