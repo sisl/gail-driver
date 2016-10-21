@@ -106,7 +106,7 @@ parser.add_argument('--adam_beta1',type=float,default=0.9)
 parser.add_argument('--adam_beta2',type=float,default=0.99)
 parser.add_argument('--adam_epsilon',type=float,default=1e-8)
 parser.add_argument('--decay_steps',type=int,default=0)
-parser.add_argument('--decay_rate',type=int,default=1.0)
+parser.add_argument('--decay_rate',type=float,default=1.0)
 
 parser.add_argument('--policy_ent_reg', type=float, default=0.0)
 parser.add_argument('--env_r_weight',type=float,default=0.0)
