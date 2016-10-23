@@ -78,6 +78,7 @@ parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 parser.add_argument('--use_batchnorm',type=int,default=0)
 
 parser.add_argument('--nonlinearity',type=str,default='tanh')
+parser.add_argument('--batch_normalization',type=bool,default=False)
 
 ## not implemented
 #parser.add_argument('--match_weight',type=float,default=0.0) # how much to reward matching the expert hidden activations
@@ -204,14 +205,17 @@ env = TfEnv(g_env) # this works
 # create policy
 if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
-                               std_hidden_nonlinearity=nonlinearity,hidden_nonlinearity=nonlinearity)
+                               std_hidden_nonlinearity=nonlinearity,hidden_nonlinearity=nonlinearity,
+                               batch_normalization=args.batch_normalization
+                               )
     if args.policy_ckpt_name is not None:
         with tf.Session() as sess:
             policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
     feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, nonlinearity, nonlinearity,
-                   input_shape= (np.prod(env.spec.observation_space.shape),))
+                   input_shape= (np.prod(env.spec.observation_space.shape),),
+                   batch_normalization=args.batch_normalization)
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
                               feature_network=feat_mlp,
@@ -232,15 +236,17 @@ elif args.baseline_type == 'mlp':
                            hidden_sizes= b_hspec,
                            hidden_nonlinearity=nonlinearity,
                            output_nonlinearity=None,
-                           input_shape=(np.prod(env.spec.observation_space.shape),))
+                           input_shape=(np.prod(env.spec.observation_space.shape),),
+                           batch_normalization=args.batch_normalization)
     baseline.initialize_optimizer()
 else:
     raise NotImplementedError
 
 # create adversary
 reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid,
-                       input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
-                       )
+                   input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,),
+                   batch_normalization= args.batch_normalization
+                   )
 
 if not args.only_trpo:
     algo = GAIL(

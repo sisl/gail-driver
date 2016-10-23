@@ -31,7 +31,8 @@ class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
             output_nonlinearity=None,
             mean_network=None,
             std_network=None,
-            std_parametrization='exp'
+            std_parametrization='exp',
+            batch_normalization= False
     ):
         """
         :param env_spec:
@@ -69,6 +70,7 @@ class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
                     hidden_sizes=hidden_sizes,
                     hidden_nonlinearity=hidden_nonlinearity,
                     output_nonlinearity=output_nonlinearity,
+                    batch_normalization=batch_normalization
                 )
             self._mean_network = mean_network
 
@@ -87,6 +89,7 @@ class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
                         hidden_sizes=std_hidden_sizes,
                         hidden_nonlinearity=std_hidden_nonlinearity,
                         output_nonlinearity=None,
+                        batch_normalization=batch_normalization
                     )
                     l_std_param = std_network.output_layer
                 else:
