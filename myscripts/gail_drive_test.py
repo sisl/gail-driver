@@ -77,6 +77,8 @@ parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 
 parser.add_argument('--use_batchnorm',type=int,default=0)
 
+parser.add_argument('--nonlinearity',type=str,default='tanh')
+
 ## not implemented
 #parser.add_argument('--match_weight',type=float,default=0.0) # how much to reward matching the expert hidden activations
 #parser.add_argument('--match_ix',type=int,default=2) # which expert layer to match
@@ -114,6 +116,17 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 args = parser.parse_args()
 
 from rl_filepaths import expert_trajs_path, rllab_path
+
+if args.nonlinearity == 'tanh':
+    nonlinearity = tf.nn.tanh
+elif args.nonlinearity == 'relu':
+    nonlinearity = tf.nn.relu
+elif args.nonlinearity == 'elu':
+    nonlinearity = tf.nn.elu
+elif args.nonlinearity == "sigmoid":
+    nonlinearity = tf.nn.sigmoid
+else:
+    raise NotImplementedError
 
 if args.hspec is None:
     p_hspec = args.p_hspec
@@ -191,13 +204,13 @@ env = TfEnv(g_env) # this works
 # create policy
 if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
-                               std_hidden_nonlinearity=tf.nn.tanh,hidden_nonlinearity=tf.nn.tanh)
+                               std_hidden_nonlinearity=nonlinearity,hidden_nonlinearity=nonlinearity)
     if args.policy_ckpt_name is not None:
         with tf.Session() as sess:
             policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
-    feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, tf.nn.tanh, tf.nn.tanh,
+    feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, nonlinearity, nonlinearity,
                    input_shape= (np.prod(env.spec.observation_space.shape),))
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
@@ -217,7 +230,7 @@ elif args.baseline_type == 'mlp':
     baseline = BaselineMLP(name='mlp_baseline',
                            output_dim=1,
                            hidden_sizes= b_hspec,
-                           hidden_nonlinearity=tf.nn.tanh,
+                           hidden_nonlinearity=nonlinearity,
                            output_nonlinearity=None,
                            input_shape=(np.prod(env.spec.observation_space.shape),))
     baseline.initialize_optimizer()
@@ -225,7 +238,7 @@ else:
     raise NotImplementedError
 
 # create adversary
-reward = RewardMLP('mlp_reward', 1, r_hspec, tf.nn.tanh,tf.nn.sigmoid,
+reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid,
                        input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
                        )
 
