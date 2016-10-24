@@ -91,7 +91,7 @@ class GAIL(TRPO):
 
         # normalize actions . observations are normalized by environment
         act_pi -= self.act_mean
-        act_pi /= (1e-8 + self.act_std)
+        act_pi /= self.act_std
 
         obs_ex= self.expert_data['obs']
         act_ex= self.expert_data['act']
