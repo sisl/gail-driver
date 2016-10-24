@@ -162,12 +162,13 @@ elif args.env_name == "Auto2D":
         args.n_features,''.join([str(n) for n in args.trajdatas]))
 
     env_dict = {'trajdata_indeces': args.trajdatas,
-                'use_playback_reactive': args.use_playback_reactive}
-    JuliaEnvWrapper.set_initials(args.env_name, 1, {"extract_core":True,
-                                                    "extract_temporal":True,
-                                                    "extract_well_behaved":True,
-                                                    "extract_neighbor_features":True,
-                                                    "extract_carlidar_rangerate":False})
+                'use_playback_reactive': args.use_playback_reactive,
+                'extract_core':True,
+                'extract_temporal':True,
+                'extract_well_behaved':True,
+                'extract_neighbor_features':True,
+                'extract_carlidar_rangerate':False}
+    JuliaEnvWrapper.set_initials(args.env_name, 1, env_dict)
     gym.envs.register(
         id=env_id,
         entry_point='rltools.envs.julia_sim:JuliaEnvWrapper',
