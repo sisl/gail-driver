@@ -40,9 +40,9 @@ class NeuralNetwork(Model):
             loss = tf.reduce_mean(
                 0.5 * tf.square(outputs - self.target_var), name='like_loss'
             )
-            
+
         elif self.output_layer.nonlinearity == tf.nn.sigmoid:
-            
+
             logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
             sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.squeeze(self.target_var))
 
@@ -52,7 +52,7 @@ class NeuralNetwork(Model):
                 )
             else:
                 loss = tf.reduce_mean(sigmoid_loss)
-            
+
         return loss
 
     def complexity_loss(self, reg, cmx):
@@ -135,9 +135,9 @@ class StochasticNetwork(NeuralNetwork):
             Y_p = mu_p
         elif self.output_layer.nonlinearity == tf.nn.sigmoid:
             Y_p = mu_p
-        
-        return Y_p 
-    
+
+        return Y_p
+
 
 class MLP(LayersPowered, Serializable, DeterministicNetwork):
     def __init__(self, name, output_dim, hidden_sizes, hidden_nonlinearity,
@@ -157,7 +157,9 @@ class MLP(LayersPowered, Serializable, DeterministicNetwork):
             self._layers = [l_in]
             l_hid = l_in
             if batch_normalization:
-                l_hid = L.batch_norm(l_hid)
+                ls = L.batch_norm(l_hid)
+                l_hid = ls[-1]
+                self._layers += ls
             for idx, hidden_size in enumerate(hidden_sizes):
                 l_hid = L.DenseLayer(
                     l_hid,
@@ -169,7 +171,9 @@ class MLP(LayersPowered, Serializable, DeterministicNetwork):
                     weight_normalization=weight_normalization
                 )
                 if batch_normalization:
-                    l_hid = L.batch_norm(l_hid)
+                    ls = L.batch_norm(l_hid)
+                    l_hid = ls[-1]
+                    self._layers += ls
                 self._layers.append(l_hid)
             l_out = L.DenseLayer(
                 l_hid,
@@ -181,7 +185,9 @@ class MLP(LayersPowered, Serializable, DeterministicNetwork):
                 weight_normalization=weight_normalization
             )
             if batch_normalization:
-                l_out = L.batch_norm(l_out)
+                ls = L.batch_norm(l_out)
+                l_out = ls[-1]
+                self._layers += ls
             self._layers.append(l_out)
             self._l_in = l_in
             self._l_out = l_out
@@ -324,18 +330,18 @@ class LatentMLP(LayersPowered, Serializable, StochasticNetwork):
 
 
     def generate(self, Z= None, prior_ix= -1):
-        # retrieve all layers receiving inputs from a LatentLayer       
+        # retrieve all layers receiving inputs from a LatentLayer
         encoders = [layer for layer in self.layers if type(layer) is L.LatentLayer]
         sampling_layer = encoders[prior_ix]
         if Z is None:
             Z = tf.random_normal(sampling_layer.output_shape)
         else:
             Z = tf.constant(Z, dtype=tf.float32)
-        
+
         sess = tf.get_default_session()
         Y = sess.run(L.get_output(self.output_layer, inputs= {sampling_layer : Z}))
-        
-        return Y     
+
+        return Y
 
 class RewardMLP(MLP):
     """
@@ -343,7 +349,8 @@ class RewardMLP(MLP):
     """
 
     def compute_reward(self, X):
-        predits = -tf.log(1.0 - self.output)
+        #predits = -tf.log(1.0 - self.output)
+        predits = -tf.log(1.0 - tf.sigmoid(self.output))
         Y_p = self._predict(predits, X)
         return Y_p
 
@@ -351,12 +358,14 @@ class RewardMLP(MLP):
         """
         predict logits ...
         """
-        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        #logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        logits = self.output
         Y_p = self._predict(logits, X)
         return Y_p
 
     def likelihood_loss(self):
-        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        #logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        logits = L.get_output(self.layers[-1])
         loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, self.target_var)
         #ent_B = tfutil.logit_bernoulli_entropy(logits)
         #self.obj = tf.reduce_sum(loss_B - self.ent_reg_weight * ent_B)

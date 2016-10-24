@@ -75,8 +75,6 @@ parser.add_argument('--r_hspec',type=int,nargs='+',default=[]) # reward layers
 
 parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 
-parser.add_argument('--use_batchnorm',type=int,default=0)
-
 parser.add_argument('--nonlinearity',type=str,default='tanh')
 parser.add_argument('--batch_normalization',type=bool,default=False)
 
@@ -213,9 +211,12 @@ if args.policy_type == 'mlp':
             policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
-    feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, nonlinearity, nonlinearity,
-                   input_shape= (np.prod(env.spec.observation_space.shape),),
-                   batch_normalization=args.batch_normalization)
+    if p_hspec == []:
+        feat_mlp = None
+    else:
+        feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, nonlinearity,
+                       input_shape= (np.prod(env.spec.observation_space.shape),),
+                       batch_normalization=args.batch_normalization)
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
                               feature_network=feat_mlp,
@@ -243,7 +244,7 @@ else:
     raise NotImplementedError
 
 # create adversary
-reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid,
+reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,None, # note : sigmoid computed internally.
                    input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,),
                    batch_normalization= args.batch_normalization
                    )
