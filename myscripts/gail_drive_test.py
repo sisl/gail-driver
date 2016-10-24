@@ -116,6 +116,8 @@ args = parser.parse_args()
 
 from rl_filepaths import expert_trajs_path, rllab_path
 
+assert not args.batch_normalization, "Batch normalization not implemented."
+
 if args.nonlinearity == 'tanh':
     nonlinearity = tf.nn.tanh
 elif args.nonlinearity == 'relu':
@@ -248,7 +250,7 @@ else:
     raise NotImplementedError
 
 # create adversary
-reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,None, # note : sigmoid computed internally.
+reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid, # note : sigmoid computed internally.
                    input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,),
                    batch_normalization= args.batch_normalization
                    )

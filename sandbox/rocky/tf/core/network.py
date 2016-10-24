@@ -349,8 +349,8 @@ class RewardMLP(MLP):
     """
 
     def compute_reward(self, X):
-        #predits = -tf.log(1.0 - self.output)
-        predits = -tf.log(1.0 - tf.sigmoid(self.output))
+        predits = -tf.log(1.0 - self.output)
+        #predits = -tf.log(1.0 - tf.sigmoid(self.output))
         Y_p = self._predict(predits, X)
         return Y_p
 
@@ -358,14 +358,14 @@ class RewardMLP(MLP):
         """
         predict logits ...
         """
-        #logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
-        logits = self.output
+        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        #logits = self.output
         Y_p = self._predict(logits, X)
         return Y_p
 
     def likelihood_loss(self):
-        #logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
-        logits = L.get_output(self.layers[-1])
+        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        #logits = L.get_output(self.layers[-1])
         loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, self.target_var)
         #ent_B = tfutil.logit_bernoulli_entropy(logits)
         #self.obj = tf.reduce_sum(loss_B - self.ent_reg_weight * ent_B)
