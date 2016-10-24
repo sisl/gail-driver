@@ -55,6 +55,7 @@ parser.add_argument('--env_name',type=str,default="Following")
 #parser.add_argument('--args_data',type=str)
 parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize',type=bool,default= True)
+parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
 parser.add_argument('--render',type=bool, default= False)
 
@@ -74,7 +75,8 @@ parser.add_argument('--r_hspec',type=int,nargs='+',default=[]) # reward layers
 
 parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 
-parser.add_argument('--use_batchnorm',type=int,default=0)
+parser.add_argument('--nonlinearity',type=str,default='tanh')
+parser.add_argument('--batch_normalization',type=bool,default=False)
 
 ## not implemented
 #parser.add_argument('--match_weight',type=float,default=0.0) # how much to reward matching the expert hidden activations
@@ -104,6 +106,8 @@ parser.add_argument('--adam_lr', type=float, default=0.00005)
 parser.add_argument('--adam_beta1',type=float,default=0.9)
 parser.add_argument('--adam_beta2',type=float,default=0.99)
 parser.add_argument('--adam_epsilon',type=float,default=1e-8)
+parser.add_argument('--decay_steps',type=int,default=0)
+parser.add_argument('--decay_rate',type=float,default=1.0)
 
 parser.add_argument('--policy_ent_reg', type=float, default=0.0)
 parser.add_argument('--env_r_weight',type=float,default=0.0)
@@ -111,6 +115,17 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 args = parser.parse_args()
 
 from rl_filepaths import expert_trajs_path, rllab_path
+
+if args.nonlinearity == 'tanh':
+    nonlinearity = tf.nn.tanh
+elif args.nonlinearity == 'relu':
+    nonlinearity = tf.nn.relu
+elif args.nonlinearity == 'elu':
+    nonlinearity = tf.nn.elu
+elif args.nonlinearity == "sigmoid":
+    nonlinearity = tf.nn.sigmoid
+else:
+    raise NotImplementedError
 
 if args.hspec is None:
     p_hspec = args.p_hspec
@@ -123,10 +138,6 @@ else:
 
 if args.env_name == 'Following':
 
-    r_fn = lambda x : np.abs(x - args.following_distance)
-    # print "here"
-    # env = DriveEnv_1D(reward_fn= r_fn)
-    # print "here"
     env_id = "Following-v0"
 
     FollowingWrapper.set_initials(args.following_distance)
@@ -148,8 +159,13 @@ elif args.env_name == "Auto2D":
     expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
         args.n_features,''.join([str(n) for n in args.trajdatas]))
 
-    env_dict = {'trajdata_indeces': args.trajdatas}
-    JuliaEnvWrapper.set_initials(args.env_name, 1, {})
+    env_dict = {'trajdata_indeces': args.trajdatas,
+                'use_playback_reactive': args.use_playback_reactive}
+    JuliaEnvWrapper.set_initials(args.env_name, 1, {"extract_core":True,
+                                                    "extract_temporal":True,
+                                                    "extract_well_behaved":True,
+                                                    "extract_neighbor_features":True,
+                                                    "extract_carlidar_rangerate":False})
     gym.envs.register(
         id=env_id,
         entry_point='rltools.envs.julia_sim:JuliaEnvWrapper',
@@ -170,10 +186,12 @@ initial_obs_std[15] = 1.0
 initial_obs_std[16] = 1.0
 initial_obs_var = np.square(initial_obs_std)
 
+initial_act_mean = expert_data_stacked['exa_Bstacked_Da'].mean(axis= 0)
+initial_act_std = expert_data_stacked['exa_Bstacked_Da'].std(axis= 0)
+
 if args.normalize:
-    # WARNING: currently only computing this for the OBSERVATIONS not ACTIONS.
     expert_data = {'obs':(expert_data_stacked['exobs_Bstacked_Do'] - initial_obs_mean) / initial_obs_std,
-                   'act':expert_data_stacked['exa_Bstacked_Da']}
+                   'act':(expert_data_stacked['exa_Bstacked_Da'] - initial_act_mean) / initial_act_std}
 
     #(obs - self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
 else:
@@ -191,14 +209,20 @@ env = TfEnv(g_env) # this works
 # create policy
 if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
-                               std_hidden_nonlinearity=tf.nn.tanh,hidden_nonlinearity=tf.nn.tanh)
+                               std_hidden_nonlinearity=nonlinearity,hidden_nonlinearity=nonlinearity,
+                               batch_normalization=args.batch_normalization
+                               )
     if args.policy_ckpt_name is not None:
         with tf.Session() as sess:
             policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
-    feat_mlp = MLP('mlp_policy', env.action_dim, p_hspec, tf.nn.tanh, tf.nn.tanh,
-                   input_shape= (np.prod(env.spec.observation_space.shape),))
+    if p_hspec == []:
+        feat_mlp = None
+    else:
+        feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, nonlinearity,
+                       input_shape= (np.prod(env.spec.observation_space.shape),),
+                       batch_normalization=args.batch_normalization)
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
                               feature_network=feat_mlp,
@@ -217,17 +241,19 @@ elif args.baseline_type == 'mlp':
     baseline = BaselineMLP(name='mlp_baseline',
                            output_dim=1,
                            hidden_sizes= b_hspec,
-                           hidden_nonlinearity=tf.nn.tanh,
+                           hidden_nonlinearity=nonlinearity,
                            output_nonlinearity=None,
-                           input_shape=(np.prod(env.spec.observation_space.shape),))
+                           input_shape=(np.prod(env.spec.observation_space.shape),),
+                           batch_normalization=args.batch_normalization)
     baseline.initialize_optimizer()
 else:
     raise NotImplementedError
 
 # create adversary
-reward = RewardMLP('mlp_reward', 1, r_hspec, tf.nn.tanh,tf.nn.sigmoid,
-                       input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
-                       )
+reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,None, # note : sigmoid computed internally.
+                   input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,),
+                   batch_normalization= args.batch_normalization
+                   )
 
 if not args.only_trpo:
     algo = GAIL(
@@ -246,6 +272,10 @@ if not args.only_trpo:
         force_batch_sampler= True,
         whole_paths= True,
         adam_steps= args.adam_steps,
+        decay_rate= args.decay_rate,
+        decay_steps= args.decay_steps,
+        act_mean= initial_act_mean,
+        act_std= initial_act_std,
         fo_optimizer_cls= tf.train.AdamOptimizer,
         fo_optimizer_args= dict(learning_rate = args.adam_lr,
                                 beta1 = args.adam_beta1,

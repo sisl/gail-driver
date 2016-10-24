@@ -28,12 +28,25 @@ class GAIL(TRPO):
             expert_data=None,
             gail_batch_size=100,
             adam_steps=1,
+            decay_steps=1,
+            decay_rate=1.0,
+            act_mean = 0.0,
+            act_std = 1.0,
             **kwargs):
 
         super(GAIL, self).__init__(optimizer=optimizer, optimizer_args=optimizer_args, **kwargs)
         self.reward_model = reward
         self.expert_data = expert_data
         self.gail_batch_size = gail_batch_size
+
+        self.act_mean = act_mean
+        self.act_std = act_std
+
+        self.global_step = tf.Variable(0, trainable=False)
+        decayed_learning_rate = tf.train.exponential_decay(fo_optimizer_args['learning_rate'], self.global_step,
+                                                           decay_steps, decay_rate, staircase=True)
+        fo_optimizer_args['learning_rate']= decayed_learning_rate
+
         self.solver = Solver(self.reward_model, 0.0, 0.0, adam_steps, self.gail_batch_size, None,
                              tf_optimizer_cls= fo_optimizer_cls, tf_optimizer_args= fo_optimizer_args)
 
@@ -76,6 +89,10 @@ class GAIL(TRPO):
         obs_pi = all_input_values[0].reshape((-1, np.prod(self.env.observation_space.shape)))
         act_pi = all_input_values[1].reshape((-1, np.prod(self.env.action_space.shape)))
 
+        # normalize actions . observations are normalized by environment
+        act_pi -= self.act_mean
+        act_pi /= (1e-8 + self.act_std)
+
         obs_ex= self.expert_data['obs']
         act_ex= self.expert_data['act']
 
@@ -102,6 +119,8 @@ class GAIL(TRPO):
 
         self.solver.train(trans_B_Do, labels)
         scores = self.reward_model.compute_score(trans_B_Do)
+
+        self.global_step += 1
 
         #accuracy = .5 * ((scores < 0) == (labels == 0)).sum()
         accuracy = ((scores < 0) == (labels == 0)).mean()
