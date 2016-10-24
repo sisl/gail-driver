@@ -181,15 +181,16 @@ expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], e
 
 initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
 initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
+initial_obs_std[12] = 1.0
+initial_obs_std[16] = 1.0
 initial_obs_var = np.square(initial_obs_std)
 
 initial_act_mean = expert_data_stacked['exa_Bstacked_Da'].mean(axis= 0)
 initial_act_std = expert_data_stacked['exa_Bstacked_Da'].std(axis= 0)
 
 if args.normalize:
-    # WARNING: currently only computing this for the OBSERVATIONS not ACTIONS.
-    expert_data = {'obs':(expert_data_stacked['exobs_Bstacked_Do'] - initial_obs_mean) / (initial_obs_std + 1e-8),
-                   'act':(expert_data_stacked['exa_Bstacked_Da'] - initial_act_mean) / (initial_act_std + 1e-8)}
+    expert_data = {'obs':(expert_data_stacked['exobs_Bstacked_Do'] - initial_obs_mean) / initial_obs_std,
+                   'act':(expert_data_stacked['exa_Bstacked_Da'] - initial_act_mean) / initial_act_std}
 
     #(obs - self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
 else:
