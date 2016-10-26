@@ -52,13 +52,23 @@ parser.add_argument('--n_features',type=int,default=45)
 parser.add_argument('--limit_trajs',type=int,default=12000)
 parser.add_argument('--max_traj_len',type=int,default=100)  # max length of a trajectory (ts)
 parser.add_argument('--env_name',type=str,default="Following")
-#parser.add_argument('--args_data',type=str)
 parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize_obs',type=bool,default= True)
 parser.add_argument('--normalize_act',type=bool,default=False)
-parser.add_argument('--use_playback_reactive',type=bool,default=False)
-
 parser.add_argument('--render',type=bool, default= False)
+
+# Env dict
+parser.add_argument('--use_playback_reactive',type=bool,default=False)
+parser.add_argument('--extract_core',type=bool,default=False)
+parser.add_argument('--extract_temporal',type=bool,default=False)
+parser.add_argument('--extract_well_behaved',type=bool,default=False)
+parser.add_argument('--extract_neighbor_features',type=bool,default=False)
+parser.add_argument('--extract_carlidar_rangerate',type=bool,default=False)
+parser.add_argument('--carlidar_nbeams',type=int,default=0)
+parser.add_argument('--roadlidar_nbeams',type=int,default=0)
+parser.add_argument('--roadlidar_nlanes',type=int,default=0)
+parser.add_argument('--carlidar_max_range',type=float,default=0.0)
+parser.add_argument('--roadlidar_max_range',type=float,default=0.0)
 
 # Model Params
 parser.add_argument('--policy_type',type=str,default='mlp')
@@ -166,11 +176,17 @@ elif args.env_name == "Auto2D":
 
     env_dict = {'trajdata_indeces': args.trajdatas,
                 'use_playback_reactive': args.use_playback_reactive,
-                'extract_core':True,
-                'extract_temporal':True,
-                'extract_well_behaved':True,
-                'extract_neighbor_features':True,
-                'extract_carlidar_rangerate':False}
+                'extract_core':args.extract_core,
+                'extract_temporal':args.extract_temporal,
+                'extract_well_behaved':args.extract_well_behaved,
+                'extract_neighbor_features':args.extract_neighbor_features,
+                'extract_carlidar_rangerate':args.extract_carlidar_rangerate,
+                'carlidar_nbeams':args.carlidar_nbeams,
+                'roadlidar_nbeams':args.roadlidar_nbeams,
+                'roadlidar_nlanes':args.roadlidar_nlanes,
+                'carlidar_max_range':args.carlidar_max_range,
+                'roadlidar_max_range':args.roadlidar_max_range}
+
     JuliaEnvWrapper.set_initials(args.env_name, 1, env_dict)
     gym.envs.register(
         id=env_id,
