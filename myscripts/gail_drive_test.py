@@ -54,7 +54,8 @@ parser.add_argument('--max_traj_len',type=int,default=100)  # max length of a tr
 parser.add_argument('--env_name',type=str,default="Following")
 #parser.add_argument('--args_data',type=str)
 parser.add_argument('--following_distance',type=int,default=10)
-parser.add_argument('--normalize',type=bool,default= True)
+parser.add_argument('--normalize_obs',type=bool,default= True)
+parser.add_argument('--normalize_act',type=bool,default=False)
 parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
 parser.add_argument('--render',type=bool, default= False)
@@ -64,7 +65,7 @@ parser.add_argument('--policy_type',type=str,default='mlp')
 parser.add_argument('--policy_save_name',type=str,default='policy_gail')
 parser.add_argument('--policy_ckpt_name',type=str,default=None)
 parser.add_argument('--policy_ckpt_itr',type=int,default=1)
-parser.add_argument('--baseline_type',type=str,default='mlp')
+parser.add_argument('--baseline_type',type=str,default='linear')
 parser.add_argument('--reward_type',type=str,default='mlp')
 parser.add_argument('--load_policy',type=bool,default=False)
 
@@ -77,6 +78,8 @@ parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 
 parser.add_argument('--nonlinearity',type=str,default='tanh')
 parser.add_argument('--batch_normalization',type=bool,default=False)
+
+parser.add_argument('--init_policy',type=str,default=None)
 
 ## not implemented
 #parser.add_argument('--match_weight',type=float,default=0.0) # how much to reward matching the expert hidden activations
@@ -189,17 +192,23 @@ initial_obs_std[15] = 1.0
 initial_obs_std[16] = 1.0
 initial_obs_var = np.square(initial_obs_std)
 
-initial_act_mean = expert_data_stacked['exa_Bstacked_Da'].mean(axis= 0)
-initial_act_std = expert_data_stacked['exa_Bstacked_Da'].std(axis= 0)
-
-if args.normalize:
-    expert_data = {'obs':(expert_data_stacked['exobs_Bstacked_Do'] - initial_obs_mean) / initial_obs_std,
-                   'act':(expert_data_stacked['exa_Bstacked_Da'] - initial_act_mean) / initial_act_std}
-
-    #(obs - self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
+# normalize observations
+if args.normalize_obs:
+    expert_data = {'obs':(expert_data_stacked['exobs_Bstacked_Do'] - initial_obs_mean) / initial_obs_std}
 else:
-    expert_data = {'obs':expert_data_stacked['exobs_Bstacked_Do'],
-                   'act':expert_data_stacked['exa_Bstacked_Da']}
+    expert_data = {'obs':expert_data_stacked['exobs_Bstacked_Do']}
+
+# normalize actions
+if args.normalize_act:
+    initial_act_mean = expert_data_stacked['exa_Bstacked_Da'].mean(axis= 0)
+    initial_act_std = expert_data_stacked['exa_Bstacked_Da'].std(axis= 0)
+
+    expert_data.update({'act':(expert_data_stacked['exa_Bstacked_Da'] - initial_act_mean) / initial_act_std})
+else:
+    initial_act_mean = 0.0
+    initial_act_std = 1.0
+
+    expert_data.update({'act':expert_data_stacked['exa_Bstacked_Da']})
 
 g_env = normalize(GymEnv(env_id),
                   initial_obs_mean= initial_obs_mean,
@@ -207,7 +216,7 @@ g_env = normalize(GymEnv(env_id),
                   normalize_obs= True,
                   running_obs= False)
 
-env = TfEnv(g_env) # this works
+env = TfEnv(g_env)
 
 # create policy
 if args.policy_type == 'mlp':
@@ -315,10 +324,13 @@ while exp_name in os.listdir(rllab_path+'/data/'+date+'/'):
 
 exp_dir = date+'/'+exp_name
 log_dir = osp.join(config.LOG_DIR, exp_dir)
+
+if args.init_policy is not None:
+    policy.load_params(args.init_policy, -1)
 policy.set_log_dir(log_dir)
 
 log_dir = osp.join(config.LOG_DIR, exp_dir)
-runner = RLLabRunner(algo,args, exp_dir)
+runner = RLLabRunner(algo, args, exp_dir)
 runner.train()
 
 halt= True
