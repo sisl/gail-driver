@@ -117,7 +117,7 @@ class JointParameterized(Parameterized):
 class Model(Parameterized):
     _model_dir = './models/'
 
-    def load_params(self, filename, itr):
+    def load_params(self, filename, itr, skip_params=[]):
         print 'loading policy params...'
         if not hasattr(self, 'log_dir'):
             log_dir = Model._model_dir
@@ -134,6 +134,9 @@ class Model(Parameterized):
 
             for param in self.get_params():
                 path = prefix + param.name
+                if param.name in skip_params:
+                    continue
+
                 if path in hf:
                     assignments.append(
                         param.assign(hf[path][...])
