@@ -115,14 +115,15 @@ class JointParameterized(Parameterized):
 
 
 class Model(Parameterized):
-    _model_dir = './models/'
+    _load_dir = './models/'
+    _log_dir = './models/'
 
-    def load_params(self, filename, itr, skip_params=[]):
+    def load_params(self, filename, itr, skip_params):
         print 'loading policy params...'
-        if not hasattr(self, 'log_dir'):
-            log_dir = Model._model_dir
+        if not hasattr(self, 'load_dir'):
+            log_dir = Model._load_dir
         else:
-            log_dir = self.log_dir
+            log_dir = self.load_dir
         filename = log_dir + "/" + filename + '.h5'
         assignments = []
 
@@ -150,7 +151,7 @@ class Model(Parameterized):
     def save_params(self, itr, overwrite= False):
         print 'saving model...'
         if not hasattr(self, 'log_dir'):
-            log_dir = Model._model_dir
+            log_dir = Model._log_dir
         else:
             log_dir = self.log_dir
         filename = log_dir + "/" + self.save_name + '.h5'
@@ -172,6 +173,9 @@ class Model(Parameterized):
 
     def set_log_dir(self, log_dir):
         self.log_dir = log_dir
+
+    def set_load_dir(self, load_dir):
+        self.load_dir = load_dir
 
     @staticmethod
     def _prefix(x):
