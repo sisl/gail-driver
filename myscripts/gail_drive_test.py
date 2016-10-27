@@ -187,10 +187,6 @@ elif args.env_name == "Auto2D":
     expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
         args.n_features,''.join([str(n) for n in args.trajdatas]))
 
-    expert_data, _ = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = SWAP)
-    expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], expert_data['exa_B_T_Da'], expert_data['exlen_B'],
-                                                      labeller= None)
-
     env_dict = {'trajdata_indeces': args.trajdatas,
                 'use_playback_reactive': args.use_playback_reactive,
                 'extract_core':args.extract_core,
