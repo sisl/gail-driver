@@ -122,6 +122,10 @@ parser.add_argument('--adam_epsilon',type=float,default=1e-8)
 parser.add_argument('--decay_steps',type=int,default=0)
 parser.add_argument('--decay_rate',type=float,default=1.0)
 
+parser.add_argument('--hard_freeze',type=bool,default=True)
+parser.add_argument('--freeze_upper',type=float,default=1.0)
+parser.add_argument('--freeze_lower',type=float,default=0.5)
+
 parser.add_argument('--policy_ent_reg', type=float, default=0.0)
 parser.add_argument('--env_r_weight',type=float,default=0.0)
 
@@ -168,11 +172,24 @@ if args.env_name == 'Following':
 
     SWAP= True
 
+    expert_data, _ = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = SWAP)
+    expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], expert_data['exa_B_T_Da'], expert_data['exlen_B'],
+                                                      labeller= None)
+
+    initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
+    initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
+    initial_obs_var = np.square(initial_obs_std)
+
+
 elif args.env_name == "Auto2D":
     env_id = "Auto2D-v0"
 
     expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
         args.n_features,''.join([str(n) for n in args.trajdatas]))
+
+    expert_data, _ = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = SWAP)
+    expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], expert_data['exa_B_T_Da'], expert_data['exlen_B'],
+                                                      labeller= None)
 
     env_dict = {'trajdata_indeces': args.trajdatas,
                 'use_playback_reactive': args.use_playback_reactive,
@@ -197,16 +214,16 @@ elif args.env_name == "Auto2D":
 
     SWAP= False
 
-expert_data, _ = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = SWAP)
-expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], expert_data['exa_B_T_Da'], expert_data['exlen_B'],
-                                                  labeller= None)
+    expert_data, _ = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = SWAP)
+    expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], expert_data['exa_B_T_Da'], expert_data['exlen_B'],
+                                                      labeller= None)
 
-initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
-initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
-initial_obs_std[12] = 1.0
-initial_obs_std[15] = 1.0
-initial_obs_std[16] = 1.0
-initial_obs_var = np.square(initial_obs_std)
+    initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
+    initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
+    initial_obs_std[12] = 1.0
+    initial_obs_std[15] = 1.0
+    initial_obs_std[16] = 1.0
+    initial_obs_var = np.square(initial_obs_std)
 
 # normalize observations
 if args.normalize_obs:
@@ -284,6 +301,11 @@ reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid, # note 
                    )
 
 if not args.only_trpo:
+    if args.init_policy is not None:
+        load_param_args = [args.init_policy, -1,['gru_policy/mean_network/gru/h0:0']]
+    else:
+        load_param_args = None
+
     algo = GAIL(
         env=env,
         policy=policy,
@@ -304,7 +326,10 @@ if not args.only_trpo:
         decay_steps= args.decay_steps,
         act_mean= initial_act_mean,
         act_std= initial_act_std,
+        freeze_upper = args.freeze_upper,
+        freeze_lower = args.freeze_lower,
         fo_optimizer_cls= tf.train.AdamOptimizer,
+        load_params_args = load_param_args,
         fo_optimizer_args= dict(learning_rate = args.adam_lr,
                                 beta1 = args.adam_beta1,
                                 beta2 = args.adam_beta2,
@@ -341,11 +366,7 @@ while exp_name in os.listdir(rllab_path+'/data/'+date+'/'):
 exp_dir = date+'/'+exp_name
 log_dir = osp.join(config.LOG_DIR, exp_dir)
 
-if args.init_policy is not None:
-    policy.load_params(args.init_policy, -1)
 policy.set_log_dir(log_dir)
-
-log_dir = osp.join(config.LOG_DIR, exp_dir)
 runner = RLLabRunner(algo, args, exp_dir)
 runner.train()
 
