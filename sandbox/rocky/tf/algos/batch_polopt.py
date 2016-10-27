@@ -36,6 +36,7 @@ class BatchPolopt(RLAlgorithm):
             sampler_cls=None,
             sampler_args=None,
             force_batch_sampler=False,
+            load_params_args=None,
             **kwargs
     ):
         """
@@ -59,6 +60,7 @@ class BatchPolopt(RLAlgorithm):
         :param store_paths: Whether to save all paths data to the snapshot.
         :return:
         """
+        self.load_params_args = load_params_args
         self.env = env
         self.policy = policy
         self.baseline = baseline
@@ -103,6 +105,8 @@ class BatchPolopt(RLAlgorithm):
     def train(self):
         with tf.Session() as sess:
             sess.run(tf.initialize_all_variables())
+            if self.load_params_args is not None:
+                self.policy.load_params(*self.load_params_args)
             self.start_worker()
             start_time = time.time()
             for itr in range(self.start_itr, self.n_itr):
