@@ -59,6 +59,8 @@ parser.add_argument('--render',type=bool, default= False)
 
 # Env dict
 parser.add_argument('--use_playback_reactive',type=bool,default=False)
+
+parser.add_argument('--radar_only',type=bool,default= False)
 parser.add_argument('--extract_core',type=bool,default=False)
 parser.add_argument('--extract_temporal',type=bool,default=False)
 parser.add_argument('--extract_well_behaved',type=bool,default=False)
@@ -90,6 +92,7 @@ parser.add_argument('--nonlinearity',type=str,default='tanh')
 parser.add_argument('--batch_normalization',type=bool,default=False)
 
 parser.add_argument('--init_policy',type=str,default=None)
+parser.add_argument('--include_activation',type=bool,default=False)
 
 ## not implemented
 #parser.add_argument('--match_weight',type=float,default=0.0) # how much to reward matching the expert hidden activations
@@ -186,21 +189,39 @@ if args.env_name == 'Following':
 elif args.env_name == "Auto2D":
     env_id = "Auto2D-v0"
 
-    expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
-        args.n_features,''.join([str(n) for n in args.trajdatas]))
+    if not args.radar_only:
+        expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
+            args.n_features,''.join([str(n) for n in args.trajdatas]))
 
-    env_dict = {'trajdata_indeces': args.trajdatas,
-                'use_playback_reactive': args.use_playback_reactive,
-                'extract_core':args.extract_core,
-                'extract_temporal':args.extract_temporal,
-                'extract_well_behaved':args.extract_well_behaved,
-                'extract_neighbor_features':args.extract_neighbor_features,
-                'extract_carlidar_rangerate':args.extract_carlidar_rangerate,
-                'carlidar_nbeams':args.carlidar_nbeams,
-                'roadlidar_nbeams':args.roadlidar_nbeams,
-                'roadlidar_nlanes':args.roadlidar_nlanes,
-                'carlidar_max_range':args.carlidar_max_range,
-                'roadlidar_max_range':args.roadlidar_max_range}
+        env_dict = {'trajdata_indeces': args.trajdatas,
+                    'use_playback_reactive': args.use_playback_reactive,
+                    'extract_core':args.extract_core,
+                    'extract_temporal':args.extract_temporal,
+                    'extract_well_behaved':args.extract_well_behaved,
+                    'extract_neighbor_features':args.extract_neighbor_features,
+                    'extract_carlidar_rangerate':args.extract_carlidar_rangerate,
+                    'carlidar_nbeams':args.carlidar_nbeams,
+                    'roadlidar_nbeams':args.roadlidar_nbeams,
+                    'roadlidar_nlanes':args.roadlidar_nlanes,
+                    'carlidar_max_range':args.carlidar_max_range,
+                    'roadlidar_max_range':args.roadlidar_max_range}
+    else:
+        expert_data_path = expert_trajs_path + '/radar_features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
+            args.n_features,''.join([str(n) for n in args.trajdatas]))
+
+        env_dict = {'trajdata_indeces': args.trajdatas,
+                    'use_playback_reactive': args.use_playback_reactive,
+                    'extract_core':False,
+                    'extract_temporal':False,
+                    'extract_well_behaved':False,
+                    'extract_neighbor_features':False,
+                    'extract_carlidar_rangerate':True,
+                    'carlidar_nbeams':20,
+                    'roadlidar_nbeams':20,
+                    'roadlidar_nlanes':2,
+                    'carlidar_max_range':100.0,
+                    'roadlidar_max_range':100.}
+
 
     JuliaEnvWrapper.set_initials(args.env_name, 1, env_dict)
     gym.envs.register(
@@ -263,7 +284,11 @@ elif args.policy_type == 'gru':
     if p_hspec == []:
         feat_mlp = None
     else:
-        feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, nonlinearity,
+        if args.include_activation:
+            output_activation = nonlinearity
+        else:
+            output_activation = None
+        feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, output_activation,
                        input_shape= (np.prod(env.spec.observation_space.shape),),
                        batch_normalization=args.batch_normalization)
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
