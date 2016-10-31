@@ -115,8 +115,8 @@ class JointParameterized(Parameterized):
 
 
 class Model(Parameterized):
-    _load_dir = './models/'
-    _log_dir = './models/'
+    _load_dir = './models'
+    _log_dir = './models'
 
     def load_params(self, filename, itr, skip_params):
         print 'loading policy params...'
