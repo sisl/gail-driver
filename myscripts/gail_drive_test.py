@@ -90,6 +90,7 @@ parser.add_argument('--nonlinearity',type=str,default='tanh')
 parser.add_argument('--batch_normalization',type=bool,default=False)
 
 parser.add_argument('--init_policy',type=str,default=None)
+parser.add_argument('--include_activation',type=bool,default=False)
 
 ## not implemented
 #parser.add_argument('--match_weight',type=float,default=0.0) # how much to reward matching the expert hidden activations
@@ -261,7 +262,11 @@ elif args.policy_type == 'gru':
     if p_hspec == []:
         feat_mlp = None
     else:
-        feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, nonlinearity,
+        if args.include_activation:
+            output_activation = nonlinearity
+        else:
+            output_activation = None
+        feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, output_activation,
                        input_shape= (np.prod(env.spec.observation_space.shape),),
                        batch_normalization=args.batch_normalization)
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
