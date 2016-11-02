@@ -53,6 +53,7 @@ parser.add_argument('--env_name',type=str,default="Following")
 parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize_obs',type=bool,default= True)
 parser.add_argument('--normalize_act',type=bool,default=False)
+parser.add_argument('--norm_tol',type=float,default=1e-1)
 parser.add_argument('--render',type=bool, default= False)
 
 # Env dict
@@ -252,9 +253,7 @@ elif args.env_name == "Auto2D":
 
     initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
     initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
-    initial_obs_std[12] = 1.0
-    initial_obs_std[15] = 1.0
-    initial_obs_std[16] = 1.0
+    initial_obs_std[initial_act_std < args.norm_tol] = 1.0
     initial_obs_var = np.square(initial_obs_std)
 
 # normalize observations
