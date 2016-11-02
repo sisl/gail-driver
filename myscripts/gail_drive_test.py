@@ -253,7 +253,7 @@ elif args.env_name == "Auto2D":
 
     initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
     initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
-    initial_obs_std[initial_act_std < args.norm_tol] = 1.0
+    initial_obs_std[initial_obs_std < args.norm_tol] = 1.0
     initial_obs_var = np.square(initial_obs_std)
 
 # normalize observations
