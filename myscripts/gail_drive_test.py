@@ -3,8 +3,6 @@ import argparse
 import calendar
 
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.envs.box2d.box2d_env import Box2DEnv
-from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.normalized_env import normalize
 
 from rllab.envs.gym_env import GymEnv
@@ -61,16 +59,21 @@ parser.add_argument('--render',type=bool, default= False)
 parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
 parser.add_argument('--radar_only',type=bool,default= False)
+
 parser.add_argument('--extract_core',type=bool,default=False)
 parser.add_argument('--extract_temporal',type=bool,default=False)
 parser.add_argument('--extract_well_behaved',type=bool,default=False)
 parser.add_argument('--extract_neighbor_features',type=bool,default=False)
 parser.add_argument('--extract_carlidar_rangerate',type=bool,default=False)
-parser.add_argument('--carlidar_nbeams',type=int,default=0)
-parser.add_argument('--roadlidar_nbeams',type=int,default=0)
-parser.add_argument('--roadlidar_nlanes',type=int,default=0)
-parser.add_argument('--carlidar_max_range',type=float,default=0.0)
-parser.add_argument('--roadlidar_max_range',type=float,default=0.0)
+#parser.add_argument('--carlidar_nbeams',type=int,default=0)
+#parser.add_argument('--roadlidar_nbeams',type=int,default=0)
+#parser.add_argument('--roadlidar_nlanes',type=int,default=0)
+#parser.add_argument('--carlidar_max_range',type=float,default=0.0)
+#parser.add_argument('--roadlidar_max_range',type=float,default=0.0)
+
+parser.add_argument('--extract_carlidar',type=bool,default=False)
+parser.add_argument('--extract_roadlidar',type=bool,default=False)
+parser.add_argument('--extract_carlidar_rangerate',type=bool,default=False)
 
 # Model Params
 parser.add_argument('--policy_type',type=str,default='mlp')
@@ -188,8 +191,13 @@ elif args.env_name == "Auto2D":
     env_id = "Auto2D-v0"
 
     if not args.radar_only:
-        expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
-            args.n_features,''.join([str(n) for n in args.trajdatas]))
+        #expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
+            #args.n_features,''.join([str(n) for n in args.trajdatas]))
+        expert_data_path = expert_trajs_path + \
+            '/core{}_temp{}_well{}_neig{}_carl{}_roal{}_clrr{}_mtl{}_seed{}.h5'.format(
+            int(args.extract_core), int(args.extract_temporal), int(args.extract_well_behaved),
+            int(args.extract_neighbor_features), int(args.extract_carlidar), int(args.extract_roadlidar),
+            int(args.extract_carlidar_rangerate), 100, 456)
 
         env_dict = {'trajdata_indeces': args.trajdatas,
                     'use_playback_reactive': args.use_playback_reactive,
@@ -198,11 +206,17 @@ elif args.env_name == "Auto2D":
                     'extract_well_behaved':args.extract_well_behaved,
                     'extract_neighbor_features':args.extract_neighbor_features,
                     'extract_carlidar_rangerate':args.extract_carlidar_rangerate,
-                    'carlidar_nbeams':args.carlidar_nbeams,
-                    'roadlidar_nbeams':args.roadlidar_nbeams,
-                    'roadlidar_nlanes':args.roadlidar_nlanes,
-                    'carlidar_max_range':args.carlidar_max_range,
-                    'roadlidar_max_range':args.roadlidar_max_range}
+                    'carlidar_nbeams':20,
+                    'roadlidar_nbeams':20,
+                    'roadlidar_nlanes':2,
+                    'carlidar_max_range':100.,
+                    'roadlidar_max_range':100.}
+
+        if not args.extract_carlidar:
+            env_dict['carlidar_nbeams'] = 0
+        if not args.extract_roadlidar:
+            env_dict['roadlidar_nbeams'] = 0
+
     else:
         expert_data_path = expert_trajs_path + '/radar_features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
             args.n_features,''.join([str(n) for n in args.trajdatas]))
@@ -219,7 +233,6 @@ elif args.env_name == "Auto2D":
                     'roadlidar_nlanes':2,
                     'carlidar_max_range':100.0,
                     'roadlidar_max_range':100.}
-
 
     JuliaEnvWrapper.set_initials(args.env_name, 1, env_dict)
     gym.envs.register(
