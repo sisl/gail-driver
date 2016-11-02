@@ -137,6 +137,8 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 
 args = parser.parse_args()
 
+assert not args.batch_normalization, "Batch normalization not implemented."
+
 from rl_filepaths import expert_trajs_path, rllab_path
 
 assert not args.batch_normalization, "Batch normalization not implemented."
@@ -329,7 +331,7 @@ else:
     raise NotImplementedError
 
 # create adversary
-reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid, # note : sigmoid computed internally.
+reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid,
                    input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,),
                    batch_normalization= args.batch_normalization
                    )
