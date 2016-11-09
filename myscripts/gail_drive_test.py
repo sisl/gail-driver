@@ -85,6 +85,8 @@ parser.add_argument('--baseline_type',type=str,default='linear')
 parser.add_argument('--reward_type',type=str,default='mlp')
 parser.add_argument('--load_policy',type=bool,default=False)
 
+parser.add_argument('--include_safety',type=bool,default=False)
+
 parser.add_argument('--hspec',type=int,nargs='+') # specifies architecture of "feature" networks
 parser.add_argument('--p_hspec',type=int,nargs='+',default=[]) # policy layers
 parser.add_argument('--b_hspec',type=int,nargs='+',default=[]) # baseline layers
@@ -126,10 +128,10 @@ parser.add_argument('--adam_lr', type=float, default=0.00005)
 parser.add_argument('--adam_beta1',type=float,default=0.9)
 parser.add_argument('--adam_beta2',type=float,default=0.99)
 parser.add_argument('--adam_epsilon',type=float,default=1e-8)
-parser.add_argument('--decay_steps',type=int,default=0)
+parser.add_argument('--decay_steps',type=int,default=1)
 parser.add_argument('--decay_rate',type=float,default=1.0)
 
-parser.add_argument('--hard_freeze',type=bool,default=True)
+parser.add_argument('--hard_freeze',type=bool,default=False)
 parser.add_argument('--freeze_upper',type=float,default=1.0)
 parser.add_argument('--freeze_lower',type=float,default=0.5)
 
@@ -306,7 +308,10 @@ elif args.policy_type == 'gru':
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
                               feature_network=feat_mlp,
+                              include_safety=args.include_safety,
                               state_include_action=False)
+
+
 else:
     raise NotImplementedError
 
