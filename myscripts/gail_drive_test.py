@@ -195,49 +195,33 @@ if args.env_name == 'Following':
 elif args.env_name == "Auto2D":
     env_id = "Auto2D-v0"
 
-    if not args.radar_only:
-        #expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
-            #args.n_features,''.join([str(n) for n in args.trajdatas]))
-        expert_data_path = expert_trajs_path + \
-            '/core{}_temp{}_well{}_neig{}_carl{}_roal{}_clrr{}_mtl{}_seed{}.h5'.format(
-            int(args.extract_core), int(args.extract_temporal), int(args.extract_well_behaved),
-            int(args.extract_neighbor_features), int(args.extract_carlidar), int(args.extract_roadlidar),
-            int(args.extract_carlidar_rangerate), 100, 456)
+    #expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
+        #args.n_features,''.join([str(n) for n in args.trajdatas]))
+    expert_data_path = expert_trajs_path + \
+        '/core{}_temp{}_well{}_neig{}_carl{}_roal{}_clrr{}_mtl{}_seed{}.h5'.format(
+        int(args.extract_core), int(args.extract_temporal), int(args.extract_well_behaved),
+        int(args.extract_neighbor_features), int(args.extract_carlidar), int(args.extract_roadlidar),
+        int(args.extract_carlidar_rangerate), 100, 456)
 
-        env_dict = {'trajdata_indeces': args.trajdatas,
-                    'use_playback_reactive': args.use_playback_reactive,
-                    'extract_core':args.extract_core,
-                    'extract_temporal':args.extract_temporal,
-                    'extract_well_behaved':args.extract_well_behaved,
-                    'extract_neighbor_features':args.extract_neighbor_features,
-                    'extract_carlidar_rangerate':args.extract_carlidar_rangerate,
-                    'carlidar_nbeams':20,
-                    'roadlidar_nbeams':20,
-                    'roadlidar_nlanes':2,
-                    'carlidar_max_range':100.,
-                    'roadlidar_max_range':100.}
+    env_dict = {'trajdata_indeces': args.trajdatas,
+                'use_playback_reactive': args.use_playback_reactive,
+                'extract_core':args.extract_core,
+                'extract_temporal':args.extract_temporal,
+                'extract_well_behaved':args.extract_well_behaved,
+                'extract_neighbor_features':args.extract_neighbor_features,
+                'extract_carlidar_rangerate':args.extract_carlidar_rangerate,
+                'carlidar_nbeams':20,
+                'roadlidar_nbeams':20,
+                'roadlidar_nlanes':2,
+                'carlidar_max_range':100.,
+                'roadlidar_max_range':100.,
+                'include_safety':args.include_safety}
 
-        if not args.extract_carlidar:
-            env_dict['carlidar_nbeams'] = 0
-        if not args.extract_roadlidar:
-            env_dict['roadlidar_nbeams'] = 0
+    if not args.extract_carlidar:
+        env_dict['carlidar_nbeams'] = 0
+    if not args.extract_roadlidar:
+        env_dict['roadlidar_nbeams'] = 0
 
-    else:
-        expert_data_path = expert_trajs_path + '/radar_features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
-            args.n_features,''.join([str(n) for n in args.trajdatas]))
-
-        env_dict = {'trajdata_indeces': args.trajdatas,
-                    'use_playback_reactive': args.use_playback_reactive,
-                    'extract_core':False,
-                    'extract_temporal':False,
-                    'extract_well_behaved':False,
-                    'extract_neighbor_features':False,
-                    'extract_carlidar_rangerate':True,
-                    'carlidar_nbeams':20,
-                    'roadlidar_nbeams':20,
-                    'roadlidar_nlanes':2,
-                    'carlidar_max_range':100.0,
-                    'roadlidar_max_range':100.}
 
     JuliaEnvWrapper.set_initials(args.env_name, 1, env_dict)
     gym.envs.register(
@@ -308,7 +292,6 @@ elif args.policy_type == 'gru':
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
                               feature_network=feat_mlp,
-                              include_safety=args.include_safety,
                               state_include_action=False)
 
 
