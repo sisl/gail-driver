@@ -24,7 +24,6 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
             gru_layer_cls=L.GRULayer,
             learn_std=True,
             init_std=1.0,
-            include_safety = False,
             output_nonlinearity=None,
     ):
         """
@@ -38,7 +37,7 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
             super(GaussianGRUPolicy, self).__init__(env_spec)
 
             obs_dim = env_spec.observation_space.flat_dim
-            action_dim = env_spec.action_space.flat_dim + int(include_safety)
+            action_dim = env_spec.action_space.flat_dim
 
             if state_include_action:
                 input_dim = obs_dim + action_dim
