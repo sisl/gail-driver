@@ -191,6 +191,9 @@ class GAIL(TRPO):
 
         for path in paths:
             X = np.column_stack((path['observations'],path['actions']))
+            if self.include_safety:
+                X = X[:,:-1]
+
             path['env_rewards'] = path['rewards']
             rewards = np.squeeze( self.reward_model.compute_reward(X) )
             if rewards.ndim == 0:
