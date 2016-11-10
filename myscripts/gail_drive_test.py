@@ -318,8 +318,12 @@ else:
     raise NotImplementedError
 
 # create adversary
+if self.include_safety:
+    act_dim = env.action_dim - 1
+else:
+    act_dim = env.action_dim
 reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid,
-                   input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,),
+                   input_shape= (np.prod(env.spec.observation_space.shape) + act_dim,),
                    batch_normalization= args.batch_normalization
                    )
 
