@@ -193,7 +193,7 @@ class GAIL(TRPO):
                 rewards = rewards[np.newaxis]
             path['rewards'] = rewards
             if self.include_safety:
-                assert path['action'].ndim == 3
+                assert path['actions'].ndim == 3
                 acts = path['actions'][:,-1]
                 fraction_safe.append(
                     (acts > 0).sum() / float(len(acts))
