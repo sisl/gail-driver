@@ -186,6 +186,7 @@ class GAIL(TRPO):
 
     @overrides
     def process_samples(self, itr, paths):
+        path_lengths = []
         if self.include_safety:
             fraction_safe = []
 
@@ -206,8 +207,11 @@ class GAIL(TRPO):
                     (acts > 0).sum() / float(len(acts))
                     )
 
+            path_lengths.append(X.shape[0])
+
         assert all([path['rewards'].ndim == 1 for path in paths])
         logger.record_tabular('factionSafe', np.mean(fraction_safe))
+        logger.record_tabular('pathLengths',np.mean(path_lengths))
 
         return self.sampler.process_samples(itr, paths)
 
