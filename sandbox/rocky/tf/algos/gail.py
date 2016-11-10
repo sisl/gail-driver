@@ -2,7 +2,7 @@ from rllab.misc import ext
 from rllab.misc.overrides import overrides
 
 from sandbox.rocky.tf.algos.trpo import TRPO
-from sandbox.rocky.tf.optimizers.first_order_optimizer import Solver
+from sandbox.rocky.tf.optimizers.first_order_optimizer import Solver, SimpleSolver
 
 from rllab.misc.overrides import overrides
 import rllab.misc.logger as logger
@@ -32,6 +32,10 @@ class GAIL(TRPO):
             decay_rate=1.0,
             act_mean = 0.0,
             act_std = 1.0,
+            hard_freeze = True,
+            freeze_upper = 1.0,
+            freeze_lower = 0.5,
+            include_safety= False,
             **kwargs):
 
         super(GAIL, self).__init__(optimizer=optimizer, optimizer_args=optimizer_args, **kwargs)
@@ -42,13 +46,33 @@ class GAIL(TRPO):
         self.act_mean = act_mean
         self.act_std = act_std
 
-        self.global_step = tf.Variable(0, trainable=False)
-        decayed_learning_rate = tf.train.exponential_decay(fo_optimizer_args['learning_rate'], self.global_step,
-                                                           decay_steps, decay_rate, staircase=True)
-        fo_optimizer_args['learning_rate']= decayed_learning_rate
+        self.include_safety = include_safety
 
-        self.solver = Solver(self.reward_model, 0.0, 0.0, adam_steps, self.gail_batch_size, None,
-                             tf_optimizer_cls= fo_optimizer_cls, tf_optimizer_args= fo_optimizer_args)
+        #self.global_step = tf.Variable(0, trainable=False, name='global_step')
+        #decayed_learning_rate = tf.train.exponential_decay(fo_optimizer_args['learning_rate'], self.global_step.initialized_value(),
+                                                           #decay_steps, decay_rate, staircase=True, name= 'dlr')
+
+        #variable_learning_rate = tf.Variable(5e-4, name= 'vlr')
+
+        #self.assign_lr_to_vlr = variable_learning_rate.assign(decayed_learning_rate)
+        #self.assign_zero_to_vlr = variable_learning_rate.assign(0.0)
+        #self.assign_cur = self.assign_lr_to_vlr
+
+        #fo_optimizer_args['learning_rate']= variable_learning_rate
+
+        self.background_lr = fo_optimizer_args['learning_rate']
+        self.working_lr = fo_optimizer_args['learning_rate']
+        self.decay_rate = decay_rate
+        self.decay_steps = decay_steps
+
+        self.hard_freeze = hard_freeze
+        self.freeze_upper = freeze_upper
+        self.freeze_lower = freeze_lower
+
+        #self.solver = Solver(self.reward_model, 0.0, 0.0, adam_steps, self.gail_batch_size, None,
+                             #tf_optimizer_cls= fo_optimizer_cls, tf_optimizer_args= fo_optimizer_args)
+
+        self.solver = SimpleSolver(self.reward_model, adam_steps, self.gail_batch_size)
 
         """
         obs_ex= self.expert_data['obs']
@@ -117,10 +141,13 @@ class GAIL(TRPO):
         labels= np.concatenate((np.zeros(Bpi), np.ones(Bex)))[...,None] # 0s for policy, 1s for expert
         # weights=np.concatenate((np.ones(Bpi)/Bpi, np.ones(Bex)/Bex))
 
-        self.solver.train(trans_B_Do, labels)
+        #self.solver.train(trans_B_Do, labels, assign_vlr= self.assign_cur)
+
+        #lr = self.background_lr * decay_rate ** (global_step / decay_steps)
+        self.solver.train(trans_B_Do, labels, self.working_lr)
         scores = self.reward_model.compute_score(trans_B_Do)
 
-        self.global_step += 1
+        #self.global_step += 1
 
         #accuracy = .5 * ((scores < 0) == (labels == 0)).sum()
         accuracy = ((scores < 0) == (labels == 0)).mean()
@@ -128,11 +155,25 @@ class GAIL(TRPO):
         accuracy_for_expert = (scores[Bpi:] > 0).mean()
         assert np.allclose(accuracy, .5*(accuracy_for_currpolicy + accuracy_for_expert))
 
+        if self.hard_freeze:
+            if accuracy >= self.freeze_upper:
+                self.working_lr = 0.0
+            if accuracy <= self.freeze_lower:
+                self.working_lr = self.background_lr #* np.power(self.decay_rate, itr / self.decay_steps)
+        else:
+            self.working_lr *= np.maximum(1, np.minimum(0,
+                                                        (accuracy-self.freeze_upper)/
+                                                        (self.freeze_lower-self.freeze_upper)))
+
+        self.working_lr = self.working_lr * np.power(self.decay_rate, itr/self.decay_steps)
+
         # assign a new mean activation on expert data
         #mu_ex = tf.reduce_sum(self.matching_layer * tf.expand_dims(self.targets_B,-1),
                               #reduction_indices= 0) / tf.reduce_sum(self.targets_B)
         #sess.run(self.mu_ex.assign(mu_ex), feed)
 
+        logger.record_tabular('working_lr', self.working_lr)
+        logger.record_tabular('background_lr', self.background_lr)
         logger.record_tabular('racc', accuracy)
         logger.record_tabular('raccpi', accuracy_for_currpolicy)
         logger.record_tabular('raccex', accuracy_for_expert)
@@ -141,6 +182,9 @@ class GAIL(TRPO):
 
     @overrides
     def process_samples(self, itr, paths):
+        if self.include_safety:
+            fraction_safe = []
+
         for path in paths:
             X = np.column_stack((path['observations'],path['actions']))
             path['env_rewards'] = path['rewards']
@@ -148,8 +192,15 @@ class GAIL(TRPO):
             if rewards.ndim == 0:
                 rewards = rewards[np.newaxis]
             path['rewards'] = rewards
+            if self.include_safety:
+                assert path['action'].ndim == 3
+                acts = path['actions'][:,-1]
+                fraction_safe.append(
+                    (acts > 0).sum() / float(len(acts))
+                    )
 
         assert all([path['rewards'].ndim == 1 for path in paths])
+        logger.record_tabular('factionSafe', np.mean(fraction_safe))
 
         return self.sampler.process_samples(itr, paths)
 

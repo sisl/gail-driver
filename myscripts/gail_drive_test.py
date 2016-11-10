@@ -353,6 +353,7 @@ if not args.only_trpo:
         freeze_lower = args.freeze_lower,
         fo_optimizer_cls= tf.train.AdamOptimizer,
         load_params_args = load_param_args,
+        include_safety = args.include_safety,
         fo_optimizer_args= dict(learning_rate = args.adam_lr,
                                 beta1 = args.adam_beta1,
                                 beta2 = args.adam_beta2,
