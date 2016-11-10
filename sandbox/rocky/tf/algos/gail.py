@@ -131,7 +131,11 @@ class GAIL(TRPO):
 
         trans_Bpi_Do = np.column_stack((obs_pi_batch,act_pi_batch))
         trans_Bex_Do = np.column_stack((obs_ex_batch,act_ex_batch))
-        trans_B_Do = np.row_stack((trans_Bpi_Do,trans_Bex_Do))
+
+        if self.include_safety:
+            trans_B_Do = np.row_stack((trans_Bpi_Do[:,:-1],trans_Bex_Do))
+        else:
+            trans_B_Do = np.row_stack((trans_Bpi_Do,trans_Bex_Do))
 
         Bpi = trans_Bpi_Do.shape[0] # policy batch size.
         Bex = trans_Bex_Do.shape[0] # expert batch size.
