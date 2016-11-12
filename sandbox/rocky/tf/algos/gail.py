@@ -210,7 +210,8 @@ class GAIL(TRPO):
             path_lengths.append(X.shape[0])
 
         assert all([path['rewards'].ndim == 1 for path in paths])
-        logger.record_tabular('factionSafe', np.mean(fraction_safe))
+        if self.include_safety:
+            logger.record_tabular('aveFactionSafe', np.mean(fraction_safe))
         logger.record_tabular('pathLengths',np.mean(path_lengths))
 
         return self.sampler.process_samples(itr, paths)
