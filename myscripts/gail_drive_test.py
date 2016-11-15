@@ -78,13 +78,13 @@ parser.add_argument('--extract_roadlidar',type=bool,default=False)
 parser.add_argument('--extract_carlidar_rangerate',type=bool,default=True)
 
 # Model Params
-parser.add_argument('--feature_type',type=str,default='mlp')
+parser.add_argument('--feature_type',type=str,default='cmn')
 parser.add_argument('--policy_type',type=str,default='mlp')
 parser.add_argument('--policy_save_name',type=str,default='policy_gail')
 parser.add_argument('--policy_ckpt_name',type=str,default=None)
 parser.add_argument('--policy_ckpt_itr',type=int,default=1)
 parser.add_argument('--baseline_type',type=str,default='linear')
-parser.add_argument('--reward_type',type=str,default='mlp')
+parser.add_argument('--reward_type',type=str,default='cnm')
 parser.add_argument('--load_policy',type=bool,default=False)
 
 parser.add_argument('--include_safety',type=bool,default=False)
@@ -93,7 +93,7 @@ parser.add_argument('--hspec',type=int,nargs='+') # specifies architecture of "f
 parser.add_argument('--p_hspec',type=int,nargs='+',default=[]) # policy layers
 parser.add_argument('--b_hspec',type=int,nargs='+',default=[]) # baseline layers
 parser.add_argument('--r_hspec',type=int,nargs='+',default=[]) # reward layers
-parser.add_argument('--cnm_hspec',type=int,nargs='+',default=[])
+parser.add_argument('--cnm_hspec',type=int,nargs='+',default=[128])
 
 parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 
@@ -280,14 +280,14 @@ g_env = normalize(GymEnv(env_id),
 env = TfEnv(g_env)
 
 # compute dimensions of convolution-component and no-conv features.
-dense_input_shape = env_dict["extract_core"] * 8 + env_dict["extract_temporal"] * 6 + \
-    env_dict["extract_well_behaved"] * 3 + env_dict["extract_neighbor_features"] * 28
+dense_input_shape = (env_dict["extract_core"] * 8 + env_dict["extract_temporal"] * 6 + \
+    env_dict["extract_well_behaved"] * 3 + env_dict["extract_neighbor_features"] * 28,)
 
-conv_input_shape = env_dict["carlidar_nbeams"] + \
+conv_input_shape = (env_dict["carlidar_nbeams"] + \
     (env_dict["carlidar_nbeams"] * env_dict["extract_carlidar_rangerate"]) + \
-    (env_dict["roadlidar_nlanes"] * env_dict["roadlidar_nbeams"])
+    (env_dict["roadlidar_nlanes"] * env_dict["roadlidar_nbeams"]),)
 
-assert dense_input_shape + conv_input_shape == np.prod(env.spec.observation_space.shape)
+assert np.sum(dense_input_shape) + np.sum(conv_input_shape) == np.prod(env.spec.observation_space.shape)
 
 # create policy
 if args.policy_type == 'mlp':
@@ -311,8 +311,10 @@ elif args.policy_type == 'gru':
         # how to determine input and extra input shapes automatically?
         feat_mlp = ConvMergeNetwork('conv_policy', conv_input_shape, dense_input_shape,
                                     args.cnm_hspec[-1], args.cnm_hspec[:-1], args.conv_filters, args.conv_filter_sizes,
-                                    args.conv_strides, args.conv_pads, extra_hidden_sizes= p_hspec,
+                                    args.conv_strides, ["VALID"]*len(args.conv_strides), extra_hidden_sizes= p_hspec,
                                     hidden_nonlinearity=nonlinearity,output_nonlinearity=nonlinearity)
+    else:
+        raise NotImplementedError
 
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
