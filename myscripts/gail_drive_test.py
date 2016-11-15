@@ -23,7 +23,7 @@ from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
 from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
 
-from sandbox.rocky.tf.core.network import MLP, RewardMLP, BaselineMLP
+from sandbox.rocky.tf.core.network import MLP, RewardMLP, RewardCMN, BaselineMLP, ConvMergeNetwork
 from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
 
 import tensorflow as tf
@@ -65,6 +65,7 @@ parser.add_argument('--extract_core',type=bool,default=True)
 parser.add_argument('--extract_temporal',type=bool,default=False)
 parser.add_argument('--extract_well_behaved',type=bool,default=True)
 parser.add_argument('--extract_neighbor_features',type=bool,default=False)
+
 #parser.add_argument('--extract_carlidar_rangerate',type=bool,default=False)
 #parser.add_argument('--carlidar_nbeams',type=int,default=0)
 #parser.add_argument('--roadlidar_nbeams',type=int,default=0)
@@ -99,6 +100,14 @@ parser.add_argument('--batch_normalization',type=bool,default=False)
 
 parser.add_argument('--init_policy',type=str,default=None)
 parser.add_argument('--include_activation',type=bool,default=False)
+
+#args.conv_filters, args.conv_filter_sizes, args.conv_strides, args.conv_pads,
+#extra_hidden_sizes= args.conv_hspec,
+
+parser.add_argument('--conv_filters',type=int,nargs='+',default=[20,20])
+parser.add_argument('--conv_filter_sizes',type=int,nargs='+',default=[4,3])
+parser.add_argument('--conv_strides',type=int,nargs='+',default=[1,1])
+parser.add_argument('--conv_hspec',type=int,nargs='+',default=[128])
 
 ## not implemented
 #parser.add_argument('--match_weight',type=float,default=0.0) # how much to reward matching the expert hidden activations
@@ -268,6 +277,16 @@ g_env = normalize(GymEnv(env_id),
 
 env = TfEnv(g_env)
 
+# compute dimensions of convolution-component and no-conv features.
+dense_input_shape = env_dict["extract_core"] * 8 + env_dict["extract_temporal"] * 6 + \
+    env_dict["extract_well_behaved"] * 3 + env_dict["extract_neighbor_features"] * 28
+
+conv_input_shape = env_dict["carlidar_nbeams"] + \
+    (env_dict["carlidar_nbeams"] * env_dict["extract_carlidar_rangerate"]) + \
+    (env_dict["roadlidar_nlanes"] * env_dict["roadlidar_nbeams"])
+
+assert dense_input_shape + conv_input_shape == np.prod(env.spec.observation_space.shape)
+
 # create policy
 if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
@@ -279,16 +298,20 @@ if args.policy_type == 'mlp':
             policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
-    if p_hspec == []:
-        feat_mlp = None
-    else:
-        if args.include_activation:
-            output_activation = nonlinearity
+    if args.feature_type == 'mlp':
+        if p_hspec == []:
+            feat_mlp = None
         else:
-            output_activation = None
-        feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, output_activation,
-                       input_shape= (np.prod(env.spec.observation_space.shape),),
-                       batch_normalization=args.batch_normalization)
+            feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, nonlinearity,
+                           input_shape= (np.prod(env.spec.observation_space.shape),),
+                           batch_normalization=args.batch_normalization)
+    elif args.feature_type == 'cmn':
+        # how to determine input and extra input shapes automatically?
+        feat_mlp = ConvMergeNetwork('conv_policy', dense_input_shape, conv_input_shape,
+                                    output_dim, args.conv_hspec, args.conv_filters, args.conv_filter_sizes,
+                                    args.conv_strides, args.conv_pads, extra_hidden_sizes= p_hspec,
+                                    hidden_nonlinearity=nonlinearity,output_nonlinearity=nonlinearity)
+
     policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
                               feature_network=feat_mlp,
@@ -322,10 +345,16 @@ if args.include_safety:
     act_dim = env.action_dim - 1
 else:
     act_dim = env.action_dim
-reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid,
-                   input_shape= (np.prod(env.spec.observation_space.shape) + act_dim,),
-                   batch_normalization= args.batch_normalization
-                   )
+
+if args.reward_type == 'mlp':
+    reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity,tf.nn.sigmoid,
+                       input_shape= (np.prod(env.spec.observation_space.shape) + act_dim,),
+                       batch_normalization= args.batch_normalization
+                       )
+elif args.reward_type == 'cmn':
+    reward = RewardCMN('conv_reward', input_shape, extra_input_shape, 1, args.conv_hspec,
+                 args.conv_filters, args.conv_filter_sizes, args.conv_strides, args.conv_pads,
+                 extra_hidden_sizes= p_hspec, hidden_nonlinearity=nonlinearity,output_nonlinearity=tf.nn.sigmoid)
 
 if not args.only_trpo:
     if args.init_policy is not None:
