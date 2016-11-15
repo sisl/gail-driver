@@ -78,6 +78,7 @@ parser.add_argument('--extract_roadlidar',type=bool,default=False)
 parser.add_argument('--extract_carlidar_rangerate',type=bool,default=True)
 
 # Model Params
+parser.add_argument('--feature_type',type=str,default='mlp')
 parser.add_argument('--policy_type',type=str,default='mlp')
 parser.add_argument('--policy_save_name',type=str,default='policy_gail')
 parser.add_argument('--policy_ckpt_name',type=str,default=None)
@@ -92,6 +93,7 @@ parser.add_argument('--hspec',type=int,nargs='+') # specifies architecture of "f
 parser.add_argument('--p_hspec',type=int,nargs='+',default=[]) # policy layers
 parser.add_argument('--b_hspec',type=int,nargs='+',default=[]) # baseline layers
 parser.add_argument('--r_hspec',type=int,nargs='+',default=[]) # reward layers
+parser.add_argument('--cnm_hspec',type=int,nargs='+',default=[])
 
 parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 
@@ -307,8 +309,8 @@ elif args.policy_type == 'gru':
                            batch_normalization=args.batch_normalization)
     elif args.feature_type == 'cmn':
         # how to determine input and extra input shapes automatically?
-        feat_mlp = ConvMergeNetwork('conv_policy', dense_input_shape, conv_input_shape,
-                                    output_dim, args.conv_hspec, args.conv_filters, args.conv_filter_sizes,
+        feat_mlp = ConvMergeNetwork('conv_policy', conv_input_shape, dense_input_shape,
+                                    args.cnm_hspec[-1], args.cnm_hspec[:-1], args.conv_filters, args.conv_filter_sizes,
                                     args.conv_strides, args.conv_pads, extra_hidden_sizes= p_hspec,
                                     hidden_nonlinearity=nonlinearity,output_nonlinearity=nonlinearity)
 
@@ -352,7 +354,7 @@ if args.reward_type == 'mlp':
                        batch_normalization= args.batch_normalization
                        )
 elif args.reward_type == 'cmn':
-    reward = RewardCMN('conv_reward', input_shape, extra_input_shape, 1, args.conv_hspec,
+    reward = RewardCMN('conv_reward', conv_input_shape, dense_input_shape, 1, args.conv_hspec,
                  args.conv_filters, args.conv_filter_sizes, args.conv_strides, args.conv_pads,
                  extra_hidden_sizes= p_hspec, hidden_nonlinearity=nonlinearity,output_nonlinearity=tf.nn.sigmoid)
 
