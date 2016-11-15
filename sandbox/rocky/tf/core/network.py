@@ -761,7 +761,7 @@ class ConvMergeNetwork(LayersPowered, Serializable):
                  hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
                  hidden_nonlinearity=tf.nn.relu,
-                 output_nonlinearity=None,
+                 output_nonlinearity=None, n=2,
                  input_var=None, input_layer=None):
         Serializable.quick_init(self, locals())
 
@@ -811,7 +811,7 @@ class ConvMergeNetwork(LayersPowered, Serializable):
                     num_filters=conv_filter,
                     filter_size=filter_size,
                     stride=(stride, stride),
-                    pad=pad,
+                    pad=pad, n=n,
                     nonlinearity=hidden_nonlinearity,
                     name="conv_hidden_%d" % idx,
                 )
