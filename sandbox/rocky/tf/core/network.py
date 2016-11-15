@@ -383,46 +383,6 @@ class RewardMLP(MLP):
         loss = self.likelihood_loss()
         return loss
 
-class RewardCMN(ConvMergeNetwork):
-    """
-    overrides ConvMergeNetwork with methods / properties used in generative adversarial learning.
-    """
-
-    def compute_reward(self, X):
-        predits = -tf.log(1.0 - self.output)
-        #predits = -tf.log(1.0 - tf.sigmoid(self.output))
-        Y_p = self._predict(predits, X)
-        return Y_p
-
-    def compute_score(self, X):
-        """
-        predict logits ...
-        """
-        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
-        #logits = self.output
-        Y_p = self._predict(logits, X)
-        return Y_p
-
-    def likelihood_loss(self):
-        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
-        #logits = L.get_output(self.layers[-1])
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, self.target_var)
-        #ent_B = tfutil.logit_bernoulli_entropy(logits)
-        #self.obj = tf.reduce_sum(loss_B - self.ent_reg_weight * ent_B)
-        return tf.reduce_sum(loss)
-
-    def complexity_loss(self, reg, cmx):
-        return tf.constant(0.0)
-
-    def loss(self, reg= 0.0, cmx= 0.0):
-        #logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
-        #loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, self.target_var)
-        #ent_B = tfutil.logit_bernoulli_entropy(logits)
-        #self.obj = tf.reduce_sum(loss_B - self.ent_reg_weight * ent_B)
-        #return tf.reduce_sum(loss)
-        loss = self.likelihood_loss()
-        return loss
-
 
 class BaselineMLP(MLP, Baseline):
     def initialize_optimizer(self):
@@ -905,3 +865,45 @@ class ConvMergeNetwork(LayersPowered, Serializable):
     @property
     def input_var(self):
         return self._l_in.input_var
+
+
+class RewardCMN(ConvMergeNetwork):
+    """
+    overrides ConvMergeNetwork with methods / properties used in generative adversarial learning.
+    """
+
+    def compute_reward(self, X):
+        predits = -tf.log(1.0 - self.output)
+        #predits = -tf.log(1.0 - tf.sigmoid(self.output))
+        Y_p = self._predict(predits, X)
+        return Y_p
+
+    def compute_score(self, X):
+        """
+        predict logits ...
+        """
+        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        #logits = self.output
+        Y_p = self._predict(logits, X)
+        return Y_p
+
+    def likelihood_loss(self):
+        logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        #logits = L.get_output(self.layers[-1])
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, self.target_var)
+        #ent_B = tfutil.logit_bernoulli_entropy(logits)
+        #self.obj = tf.reduce_sum(loss_B - self.ent_reg_weight * ent_B)
+        return tf.reduce_sum(loss)
+
+    def complexity_loss(self, reg, cmx):
+        return tf.constant(0.0)
+
+    def loss(self, reg= 0.0, cmx= 0.0):
+        #logits = self.output_layer.get_logits_for(L.get_output(self.layers[-2]))
+        #loss = tf.nn.sigmoid_cross_entropy_with_logits(logits, self.target_var)
+        #ent_B = tfutil.logit_bernoulli_entropy(logits)
+        #self.obj = tf.reduce_sum(loss_B - self.ent_reg_weight * ent_B)
+        #return tf.reduce_sum(loss)
+        loss = self.likelihood_loss()
+        return loss
+
