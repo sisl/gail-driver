@@ -84,7 +84,7 @@ parser.add_argument('--policy_save_name',type=str,default='policy_gail')
 parser.add_argument('--policy_ckpt_name',type=str,default=None)
 parser.add_argument('--policy_ckpt_itr',type=int,default=1)
 parser.add_argument('--baseline_type',type=str,default='linear')
-parser.add_argument('--reward_type',type=str,default='cnm')
+parser.add_argument('--reward_type',type=str,default='cmn')
 parser.add_argument('--load_policy',type=bool,default=False)
 
 parser.add_argument('--include_safety',type=bool,default=False)
@@ -283,11 +283,11 @@ env = TfEnv(g_env)
 dense_input_shape = (env_dict["extract_core"] * 8 + env_dict["extract_temporal"] * 6 + \
     env_dict["extract_well_behaved"] * 3 + env_dict["extract_neighbor_features"] * 28,)
 
-conv_input_shape = (env_dict["carlidar_nbeams"] + \
+conv_input_shape = (1,env_dict["carlidar_nbeams"] + \
     (env_dict["carlidar_nbeams"] * env_dict["extract_carlidar_rangerate"]) + \
-    (env_dict["roadlidar_nlanes"] * env_dict["roadlidar_nbeams"]),)
+    (env_dict["roadlidar_nlanes"] * env_dict["roadlidar_nbeams"]),1)
 
-assert np.sum(dense_input_shape) + np.sum(conv_input_shape) == np.prod(env.spec.observation_space.shape)
+assert np.prod(dense_input_shape) + np.prod(conv_input_shape) == np.prod(env.spec.observation_space.shape)
 
 # create policy
 if args.policy_type == 'mlp':
@@ -356,9 +356,11 @@ if args.reward_type == 'mlp':
                        batch_normalization= args.batch_normalization
                        )
 elif args.reward_type == 'cmn':
-    reward = RewardCMN('conv_reward', conv_input_shape, dense_input_shape, 1, args.conv_hspec,
-                 args.conv_filters, args.conv_filter_sizes, args.conv_strides, args.conv_pads,
+    reward = RewardCMN('conv_reward', conv_input_shape,(np.prod(dense_input_shape) + act_dim,), 1, args.conv_hspec,
+                 args.conv_filters, args.conv_filter_sizes, args.conv_strides, ["VALID"]*len(args.conv_strides),
                  extra_hidden_sizes= p_hspec, hidden_nonlinearity=nonlinearity,output_nonlinearity=tf.nn.sigmoid)
+else:
+    raise NotImplementedError
 
 if not args.only_trpo:
     if args.init_policy is not None:

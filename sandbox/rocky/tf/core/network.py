@@ -454,7 +454,7 @@ class ConvNetwork(LayersPowered, Serializable):
                     conv_strides,
                     conv_pads,
             ):
-                l_hid = L.Conv2DLayer(
+                l_hid = L.ConvNDLayer(
                     l_hid,
                     num_filters=conv_filter,
                     filter_size=filter_size,
@@ -744,7 +744,7 @@ class LSTMNetwork(object):
         return tf.concat(0, [self._hid_init_param, self._cell_init_param])
 
 
-class ConvMergeNetwork(LayersPowered, Serializable):
+class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
     """
     This network allows the input to consist of a convolution-friendly component, plus a non-convolution-friendly
     component. These two components will be concatenated in the fully connected layers. There can also be a list of
@@ -757,11 +757,11 @@ class ConvMergeNetwork(LayersPowered, Serializable):
 
     def __init__(self, name, input_shape, extra_input_shape, output_dim, hidden_sizes,
                  conv_filters, conv_filter_sizes, conv_strides, conv_pads,
-                 extra_hidden_sizes=None,
+                 extra_hidden_sizes=None, batch_size=None,
                  hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
                  hidden_nonlinearity=tf.nn.relu,
-                 output_nonlinearity=None, n=2,
+                 output_nonlinearity=None,
                  input_var=None, input_layer=None):
         Serializable.quick_init(self, locals())
 
@@ -775,14 +775,33 @@ class ConvMergeNetwork(LayersPowered, Serializable):
             total_input_flat_dim = input_flat_dim + extra_input_flat_dim
 
             if input_layer is None:
-                l_in = L.InputLayer(shape=(None, total_input_flat_dim), input_var=input_var, name="input")
+                l_in = L.InputLayer(shape=(batch_size, total_input_flat_dim), input_var=input_var, name="input")
             else:
                 l_in = input_layer
+
+#            l_conv_in = L.reshape(
+#                L.SliceLayer(
+#                    l_in,
+#                    indices=slice(input_flat_dim),
+#                    name="conv_slice"
+#                ),
+#                ([0],) + input_shape,
+#                name="conv_reshaped"
+#            )
+#            l_extra_in = L.reshape(
+#                L.SliceLayer(
+#                    l_in,
+#                    indices=slice(input_flat_dim, None),
+#                    name="extra_slice"
+#                ),
+#                ([0],) + extra_input_shape,
+#                name="extra_reshaped"
+#            )
 
             l_conv_in = L.reshape(
                 L.SliceLayer(
                     l_in,
-                    indices=slice(input_flat_dim),
+                    indices=slice(extra_input_flat_dim, None),
                     name="conv_slice"
                 ),
                 ([0],) + input_shape,
@@ -791,7 +810,7 @@ class ConvMergeNetwork(LayersPowered, Serializable):
             l_extra_in = L.reshape(
                 L.SliceLayer(
                     l_in,
-                    indices=slice(input_flat_dim, None),
+                    indices=slice(extra_input_flat_dim),
                     name="extra_slice"
                 ),
                 ([0],) + extra_input_shape,
@@ -806,12 +825,12 @@ class ConvMergeNetwork(LayersPowered, Serializable):
                     conv_strides,
                     conv_pads,
             ):
-                l_conv_hid = L.Conv2DLayer(
+                l_conv_hid = L.ConvNDLayer(
                     l_conv_hid,
                     num_filters=conv_filter,
-                    filter_size=filter_size,
+                    filter_size=[1,filter_size],
                     stride=(stride, stride),
-                    pad=pad, n=n,
+                    pad=pad, n=2,
                     nonlinearity=hidden_nonlinearity,
                     name="conv_hidden_%d" % idx,
                 )
@@ -831,7 +850,7 @@ class ConvMergeNetwork(LayersPowered, Serializable):
                 [L.flatten(l_conv_hid, name="conv_hidden_flat"), l_extra_hid],
                 name="joint_hidden"
             )
-
+	    self._layers = []
             for idx, hidden_size in enumerate(hidden_sizes):
                 l_joint_hid = L.DenseLayer(
                     l_joint_hid,
@@ -841,6 +860,7 @@ class ConvMergeNetwork(LayersPowered, Serializable):
                     W=hidden_W_init,
                     b=hidden_b_init,
                 )
+	    self._layers.append(l_joint_hid)
             l_out = L.DenseLayer(
                 l_joint_hid,
                 num_units=output_dim,
@@ -849,8 +869,14 @@ class ConvMergeNetwork(LayersPowered, Serializable):
                 W=output_W_init,
                 b=output_b_init,
             )
+	    self._layers.append(l_out)
+
             self._l_in = l_in
             self._l_out = l_out
+
+            self._output = L.get_output(l_out)
+
+            self._l_tar = L.InputLayer(shape=(batch_size,) + (output_dim,), input_var=input_var, name="target")
 
             LayersPowered.__init__(self, [l_out], input_layers=[l_in])
 
