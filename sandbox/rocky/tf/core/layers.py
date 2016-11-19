@@ -594,7 +594,8 @@ class BaseConvLayer(Layer):
         return self.filter_size + (num_input_channels, self.num_filters)
 
     def get_output_shape_for(self, input_shape):
-        if self.pad == 'SAME':
+	## computes incorrect value for circular convolution
+        if self.pad == 'SAME' or self.pad == 'CIRCULAR':
             pad = ('same',) * self.n
         elif self.pad == 'VALID':
             pad = (0,) * self.n
@@ -664,16 +665,53 @@ class ConvNDLayer(BaseConvLayer):
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  pad="VALID", untie_biases=False,
                  W=XavierUniformInitializer(), b=tf.zeros_initializer,
-                 nonlinearity=tf.nn.relu, n=2,
-                 convolution=tf.nn.conv2d, **kwargs):
-        super(Conv2DLayer, self).__init__(incoming=incoming, num_filters=num_filters, filter_size=filter_size,
+                 nonlinearity=tf.nn.relu, n=2, **kwargs):
+        super(ConvNDLayer, self).__init__(incoming=incoming, num_filters=num_filters, filter_size=filter_size,
                                           stride=stride, pad=pad, untie_biases=untie_biases, W=W, b=b,
                                           nonlinearity=nonlinearity, n=n, **kwargs)
-        self.convolution = convolution
+        if pad == "CIRCULAR":
+	    self.convolution = self.circular_convolution
+	else:
+	    self.convolution = tf.nn.conv2d
 
     def convolve(self, input, **kwargs):
         conved = self.convolution(input, self.W, strides=(1,) + self.stride + (1,), padding=self.pad)
         return conved
+
+    @staticmethod
+    def circular_convolution(v, k, **kwargs):
+        """Computes circular convolution.
+        Args:
+            v: a 1-D `Tensor` (vector)
+            k: a 1-D `Tensor` (kernel)
+        """
+	v_n, v_h, v_w, v_c = map(lambda x : x.value, v.get_shape())
+	k_h, k_w, k_cin, k_cout = map(lambda x : x.value, k.get_shape())
+	size = v_w
+	kernel_size = k_w
+	kernel_stride = kwargs["strides"][2]
+        kernel_shift = int(math.floor(kernel_size/2.0))
+
+	def column_lookup(A,idx):
+	    """ transpose is slow :( """"
+	    B = tf.transpose(A,[2,1,0,3])
+	    G = tf.gather(B,idx)
+	    return tf.transpose(G,[2,1,0,3])
+
+        def loop(idx):
+            if idx < 0: return size + idx
+            if idx >= size : return idx - size
+            else: return idx
+
+        kernels = []
+        for i in xrange(size):
+            indices = [loop(i+j) for j in xrange(kernel_size - kernel_shift, -kernel_shift, -1)]
+	    assert len(indices) != kernel_size:
+	    v_ = column_lookup(v,indices)
+	    kernels.append(tf.nn.conv2d(v_,k,(1,1,1,1),"VALID"))
+
+	out = tf.concat(2,kernels)
+	return out
 
 def pool_output_length(input_length, pool_size, stride, pad):
     if input_length is None or pool_size is None:
