@@ -600,8 +600,6 @@ class BaseConvLayer(Layer):
         elif self.pad == 'VALID':
             pad = (0,) * self.n
         else:
-            import ipdb;
-            ipdb.set_trace()
             raise NotImplementedError
 
         # pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * self.n
@@ -693,7 +691,7 @@ class ConvNDLayer(BaseConvLayer):
         kernel_shift = int(math.floor(kernel_size/2.0))
 
 	def column_lookup(A,idx):
-	    """ transpose is slow :( """"
+	    """ transpose is slow :( """
 	    B = tf.transpose(A,[2,1,0,3])
 	    G = tf.gather(B,idx)
 	    return tf.transpose(G,[2,1,0,3])
@@ -706,7 +704,7 @@ class ConvNDLayer(BaseConvLayer):
         kernels = []
         for i in xrange(size):
             indices = [loop(i+j) for j in xrange(kernel_size - kernel_shift, -kernel_shift, -1)]
-	    assert len(indices) != kernel_size:
+	    assert len(indices) == kernel_size
 	    v_ = column_lookup(v,indices)
 	    kernels.append(tf.nn.conv2d(v_,k,(1,1,1,1),"VALID"))
 
