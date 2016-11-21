@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 
 import os
@@ -8,7 +9,7 @@ import pickle
 import joblib
 
 headers = ('MaxReturn','LossAfter','raccpi','MeanKLBefore','dLoss','NumTrajs','Iteration','AverageDiscountedReturn',
-'MinReturn','StdReturn','LossBefore','ItrTime','Entropy','AveragePolicyStd','Time','Perplexity','MeanKL',
+'MinReturn','StdReturn', 'pathLengths','LossBefore','ItrTime','Entropy','AveragePolicyStd','Time','Perplexity','MeanKL',
 'ExplainedVariance','raccex','AverageReturn','racc')
 
 parser = argparse.ArgumentParser()
@@ -44,16 +45,16 @@ for i, exp_name in enumerate(args.exp_names):
     axrow = axs[i]
     #axcol[0].plot(M[:,headers.index('AverageReturn')], 'r')
     #axcol[0].plot(M[:,headers.index('AverageDiscountedReturn')], 'b')
-    axrow[0].set_title("Return")
-    axrow[0].plot(M[:max_iters,headers.index('AverageReturn')], 'r')
-    axrow[0].plot(M[:max_iters,headers.index('AverageDiscountedReturn')], 'b')
+    axrow[0].set_title("Trajectory Length")
+    #axrow[0].plot(M[:max_iters,headers.index('AverageReturn')], 'r')
+    #axrow[0].plot(M[:max_iters,headers.index('AverageDiscountedReturn')], 'b')
+    axrow[0].plot(M[:max_iters,headers.index('pathLengths')], 'g')
 
     axrow[0].set_xticklabels([])
 
     try:
         averageEnvReturn = M[:max_iters,headers.index('AverageEnvReturn')]
         #axrow[1]
-
 
         axrow[1].set_title("Env. Return ({low_epoch}:{low},{high_epoch}:{high})".format(
             low_epoch=averageEnvReturn.argmin(),
