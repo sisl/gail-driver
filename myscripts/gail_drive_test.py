@@ -106,6 +106,7 @@ parser.add_argument('--include_activation',type=bool,default=False)
 #args.conv_filters, args.conv_filter_sizes, args.conv_strides, args.conv_pads,
 #extra_hidden_sizes= args.conv_hspec,
 
+parser.add_argument('--conv_pad',type=str,default="VALID")
 parser.add_argument('--conv_filters',type=int,nargs='+',default=[20,20])
 parser.add_argument('--conv_filter_sizes',type=int,nargs='+',default=[4,3])
 parser.add_argument('--conv_strides',type=int,nargs='+',default=[1,1])
@@ -311,7 +312,7 @@ elif args.policy_type == 'gru':
         # how to determine input and extra input shapes automatically?
         feat_mlp = ConvMergeNetwork('conv_policy', conv_input_shape, dense_input_shape,
                                     args.cnm_hspec[-1], args.cnm_hspec[:-1], args.conv_filters, args.conv_filter_sizes,
-                                    args.conv_strides, ["VALID"]*len(args.conv_strides), extra_hidden_sizes= p_hspec,
+                                    args.conv_strides, [args.conv_pad]*len(args.conv_strides), extra_hidden_sizes= p_hspec,
                                     hidden_nonlinearity=nonlinearity,output_nonlinearity=nonlinearity)
     else:
         raise NotImplementedError
@@ -357,7 +358,7 @@ if args.reward_type == 'mlp':
                        )
 elif args.reward_type == 'cmn':
     reward = RewardCMN('conv_reward', conv_input_shape,(np.prod(dense_input_shape) + act_dim,), 1, args.conv_hspec,
-                 args.conv_filters, args.conv_filter_sizes, args.conv_strides, ["VALID"]*len(args.conv_strides),
+                 args.conv_filters, args.conv_filter_sizes, args.conv_strides, [args.conv_pad]*len(args.conv_strides),
                  extra_hidden_sizes= p_hspec, hidden_nonlinearity=nonlinearity,output_nonlinearity=tf.nn.sigmoid)
 else:
     raise NotImplementedError
