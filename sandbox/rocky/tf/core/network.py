@@ -755,9 +755,9 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
     components flattened out and then concatenated together
     """
 
-    def __init__(self, name, input_shape, extra_input_shape, output_dim, hidden_sizes,
+    def __init__(self, name, input_shapes, output_dim, hidden_sizes,
                  conv_filters, conv_filter_sizes, conv_strides, conv_pads,
-                 extra_hidden_sizes=None, batch_size=None, conv_streams=(0,1),
+                 extra_hidden_sizes=None, batch_size=None, conv_streams=[0,1],
                  hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
                  hidden_nonlinearity=tf.nn.relu,
@@ -765,56 +765,53 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
                  input_var=None, input_layer=None):
         Serializable.quick_init(self, locals())
 
+	assert len(input_shapes) == len(conv_streams)
+
         if extra_hidden_sizes is None:
             extra_hidden_sizes = []
 
         with tf.variable_scope(name):
 
-            input_flat_dim = np.prod(input_shape)
-            extra_input_flat_dim = np.prod(extra_input_shape)
-            total_input_flat_dim = input_flat_dim + extra_input_flat_dim
+	    flat_dims = [np.prod(input_shape) for input_shape in input_shapes]
+	    total_input_flat_dim = np.sum(flat_dims)
 
-            if input_layer is None:
-                l_in = L.InputLayer(shape=(batch_size, total_input_flat_dim), input_var=input_var, name="input")
-            else:
-                l_in = input_layer
+	    if input_layer is None:
+		l_in = L.InputLayer(shape=(batch_size, total_input_flat_dim), input_var=input_var, name="input")
+	    else:
+		l_in = input_layer
 
-            l_in1 = L.reshape(
-                L.SliceLayer(
-                    l_in,
-                    indices=slice(extra_input_flat_dim),
-                    name="l_in1"
-                ),
-                ([0],) + extra_input_shape,
-                name="l_in1_reshaped"
-            )
-            l_in2 = L.reshape(
-                L.SliceLayer(
-                    l_in,
-                    indices=slice(extra_input_flat_dim,None),
-                    name="l_in2"
-                ),
-                ([0],) + input_shape,
-                name="l_in2_reshaped"
-            )
+	    l_in_is = []
+	    cum_sum = 0
+	    for i, (input_shape, flat_dim) in enumerate(zip(input_shapes,flat_dims)):
+		l_in_i = L.reshape(
+		    L.SliceLayer(
+		        l_in,
+		        indices=slice(cum_sum,cum_sum + flat_dim),
+		        name="l_in{}".format(i),
+		    ),
+		    ([0],) + input_shape,
+		    name="l_in{}_reshaped".format(i)
+		)
+		l_in_is.append(l_in_i)
+		cum_sum += flat_dim
 
 	    self._nonlin = hidden_nonlinearity
 	    self._hidden_W_init = hidden_W_init
 	    self._hidden_b_init = hidden_b_init
-	    if conv_streams[0] == 1:
-	        l_hid1 = self.conv_streams(l_in1, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
-	    else:
-		l_hid1 = self.dense_stream(l_in1, extra_hidden_sizes)
 
-	    if conv_streams[1] == 1:
-		l_hid2 = self.conv_stream(l_in2, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
-	    else:
-		l_hid2 = self.dense_stream(l_in2, extra_hidden_sizes)
+	    l_hids = []
+	    for l_in, boolean in zip(l_in_is,conv_streams):
+		if conv_streams[0] == 1:
+		    l_hid = self.conv_streams(l_in, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
+		else:
+		    l_hid = self.dense_stream(l_in, extra_hidden_sizes)
 
-            l_joint_hid = L.concat(
-                [l_hid1, l_hid2],
-                name="joint_hidden"
-            )
+		l_hids.appen(l_hid)
+
+	    l_joint_hid = L.concat(
+	        l_hids,
+	        name="joint_hidden")
+
 	    self._layers = []
             for idx, hidden_size in enumerate(hidden_sizes):
                 l_joint_hid = L.DenseLayer(
