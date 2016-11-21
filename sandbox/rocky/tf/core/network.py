@@ -757,7 +757,7 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
 
     def __init__(self, name, input_shape, extra_input_shape, output_dim, hidden_sizes,
                  conv_filters, conv_filter_sizes, conv_strides, conv_pads,
-                 extra_hidden_sizes=None, batch_size=None,
+                 extra_hidden_sizes=None, batch_size=None, conv_streams=(0,1),
                  hidden_W_init=L.XavierUniformInitializer(), hidden_b_init=tf.zeros_initializer,
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer,
                  hidden_nonlinearity=tf.nn.relu,
@@ -779,75 +779,40 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
             else:
                 l_in = input_layer
 
-#            l_conv_in = L.reshape(
-#                L.SliceLayer(
-#                    l_in,
-#                    indices=slice(input_flat_dim),
-#                    name="conv_slice"
-#                ),
-#                ([0],) + input_shape,
-#                name="conv_reshaped"
-#            )
-#            l_extra_in = L.reshape(
-#                L.SliceLayer(
-#                    l_in,
-#                    indices=slice(input_flat_dim, None),
-#                    name="extra_slice"
-#                ),
-#                ([0],) + extra_input_shape,
-#                name="extra_reshaped"
-#            )
-
-            l_conv_in = L.reshape(
-                L.SliceLayer(
-                    l_in,
-                    indices=slice(extra_input_flat_dim, None),
-                    name="conv_slice"
-                ),
-                ([0],) + input_shape,
-                name="conv_reshaped"
-            )
-            l_extra_in = L.reshape(
+            l_in1 = L.reshape(
                 L.SliceLayer(
                     l_in,
                     indices=slice(extra_input_flat_dim),
-                    name="extra_slice"
+                    name="l_in1"
                 ),
                 ([0],) + extra_input_shape,
-                name="extra_reshaped"
+                name="l_in1_reshaped"
+            )
+            l_in2 = L.reshape(
+                L.SliceLayer(
+                    l_in,
+                    indices=slice(extra_input_flat_dim,None),
+                    name="l_in2"
+                ),
+                ([0],) + input_shape,
+                name="l_in2_reshaped"
             )
 
-            l_conv_hid = l_conv_in
-            for idx, conv_filter, filter_size, stride, pad in zip(
-                    range(len(conv_filters)),
-                    conv_filters,
-                    conv_filter_sizes,
-                    conv_strides,
-                    conv_pads,
-            ):
-                l_conv_hid = L.ConvNDLayer(
-                    l_conv_hid,
-                    num_filters=conv_filter,
-                    filter_size=[1,filter_size],
-                    stride=(stride, stride),
-                    pad=pad, n=2,
-                    nonlinearity=hidden_nonlinearity,
-                    name="conv_hidden_%d" % idx,
-                )
+	    self._nonlin = hidden_nonlinearity
+	    self._hidden_W_init = hidden_W_init
+	    self._hidden_b_init = hidden_b_init
+	    if conv_streams[0] == 1:
+	        l_hid1 = self.conv_streams(l_in1, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
+	    else:
+		l_hid1 = self.dense_stream(l_in1, extra_hidden_sizes)
 
-            l_extra_hid = l_extra_in
-            for idx, hidden_size in enumerate(extra_hidden_sizes):
-                l_extra_hid = L.DenseLayer(
-                    l_extra_hid,
-                    num_units=hidden_size,
-                    nonlinearity=hidden_nonlinearity,
-                    name="extra_hidden_%d" % idx,
-                    W=hidden_W_init,
-                    b=hidden_b_init,
-                )
+	    if conv_streams[1] == 1:
+		l_hid2 = self.conv_stream(l_in2, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
+	    else:
+		l_hid2 = self.dense_stream(l_in2, extra_hidden_sizes)
 
             l_joint_hid = L.concat(
-                [L.flatten(l_conv_hid, name="conv_hidden_flat"), l_extra_hid],
+                [l_hid1, l_hid2],
                 name="joint_hidden"
             )
 	    self._layers = []
@@ -879,6 +844,40 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
             self._l_tar = L.InputLayer(shape=(batch_size,) + (output_dim,), input_var=input_var, name="target")
 
             LayersPowered.__init__(self, [l_out], input_layers=[l_in])
+
+    def conv_stream(self, l_in, conv_filters, conv_filter_sizes, conv_strides, conv_pads):
+        l_conv_hid = l_in
+        for idx, conv_filter, filter_size, stride, pad in zip(
+                    range(len(conv_filters)),
+                    conv_filters,
+                    conv_filter_sizes,
+                    conv_strides,
+                    conv_pads,
+        ):
+            l_conv_hid = L.ConvNDLayer(
+                    l_conv_hid,
+                    num_filters=conv_filter,
+                    filter_size=[1,filter_size],
+                    stride=(stride, stride),
+                    pad=pad, n=2,
+                    nonlinearity=self._nonlin,
+                    name="conv_hidden_%d" % idx,
+             )
+	l_conv_hid = L.flatten(l_conv_hid, name="conv_hidden_flat")
+	return l_conv_hid
+
+    def dense_stream(self, l_in, extra_hidden_sizes):
+        l_extra_hid = l_in
+        for idx, hidden_size in enumerate(extra_hidden_sizes):
+            l_extra_hid = L.DenseLayer(
+                l_extra_hid,
+                num_units=hidden_size,
+                nonlinearity=self._nonlin,
+                name="extra_hidden_%d" % idx,
+                W=self._hidden_W_init,
+                b=self._hidden_b_init,
+            )
+	return l_extra_hid
 
     @property
     def input_layer(self):
