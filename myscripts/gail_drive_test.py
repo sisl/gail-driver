@@ -234,7 +234,6 @@ elif args.env_name == "Auto2D":
     if not args.extract_roadlidar:
         env_dict['roadlidar_nbeams'] = 0
 
-
     JuliaEnvWrapper.set_initials(args.env_name, 1, env_dict)
     gym.envs.register(
         id=env_id,
@@ -284,9 +283,20 @@ env = TfEnv(g_env)
 dense_input_shape = (env_dict["extract_core"] * 8 + env_dict["extract_temporal"] * 6 + \
     env_dict["extract_well_behaved"] * 3 + env_dict["extract_neighbor_features"] * 28,)
 
-conv_input_shape = (1,env_dict["carlidar_nbeams"] + \
+total_conv_input_shape = (1,env_dict["carlidar_nbeams"] + \
     (env_dict["carlidar_nbeams"] * env_dict["extract_carlidar_rangerate"]) + \
     (env_dict["roadlidar_nlanes"] * env_dict["roadlidar_nbeams"]),1)
+
+carlidar_input_shape = (1, env_dict["carlidar_nbeams"], 1)
+roadlidar_input_shape = (1, env_dict["roadlidar_nbeams"],1)
+
+# FIXME : this may not be in right order. Won't matter if all the dimensions are the same.
+cmn_input_shapes = [carlidar_input_shape]
+if env_dict["extract_carlidar_rangerate"]:
+    cmn_input_shapes.append(carlidar_input_shape)
+cmn_input_shapes = [roadlidar_input_shape]
+
+cmn_input_shapes = [roadlidar_input_shape] * env_dict["roadlidar_nlanes"]
 
 assert np.prod(dense_input_shape) + np.prod(conv_input_shape) == np.prod(env.spec.observation_space.shape)
 
@@ -310,7 +320,7 @@ elif args.policy_type == 'gru':
                            batch_normalization=args.batch_normalization)
     elif args.feature_type == 'cmn':
         # how to determine input and extra input shapes automatically?
-        feat_mlp = ConvMergeNetwork('conv_policy', conv_input_shape, dense_input_shape,
+        feat_mlp = ConvMergeNetwork('conv_policy', cmn_input_shapes,
                                     args.cnm_hspec[-1], args.cnm_hspec[:-1], args.conv_filters, args.conv_filter_sizes,
                                     args.conv_strides, [args.conv_pad]*len(args.conv_strides), extra_hidden_sizes= p_hspec,
                                     hidden_nonlinearity=nonlinearity,output_nonlinearity=nonlinearity)
