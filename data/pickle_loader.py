@@ -33,17 +33,22 @@ gym.envs.register(
 
 
 with tf.Session() as sess:
-	x = joblib.load('16-11-04/radar_gru-3/itr_417.pkl') # 417 looked good
-	pi = x['policy']
+#	x = joblib.load('16-11-04/radar_gru-3/itr_417.pkl') # 417 looked good
+	with h5py.File("16-11-04/radar_gru-3/policy_gail.h5","r") as hf:
+		import pdb; pdb.set_trace()
+		halt= True
+
+#	x = joblib.load('16-11-04/radar_gru-2/itr_417.pkl')
+	#pi = x['policy']
 	#halt= True
-	#key = 'iter{:05}/'.format(0)
-	#with h5py.File('goodpolicy.h5', 'a') as hf:
-		#if key in hf:
-			#dset = hf[key]
-		#else:
-			#dset = hf.create_group(key)
-		#vs = pi.get_params()
-		#vals = sess.run(vs)
+	key = 'iter{:05}/'.format(0)
+	with h5py.File('goodpolicy.h5', 'a') as hf:
+		if key in hf:
+			dset = hf[key]
+		else:
+			dset = hf.create_group(key)
+		vs = pi.get_params()
+		vals = sess.run(vs)
 
 		#for v, val in zip(vs, vals):
 			#dset[v.name] = val

@@ -1966,6 +1966,9 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
                              "input expressions instead.")
         for input_layer in all_outputs:
             all_outputs[input_layer] = tf.convert_to_tensor(inputs)
+
+    #for layer, tensor in all_outputs.iteritems():
+    #	assert layer.input_layer.output_shape == tuple(map(lambda x: x.value, all_outputs[layer.input_layer].get_shape()))
     # update layer-to-expression mapping by propagating the inputs
     for layer in all_layers:
         if layer not in all_outputs:

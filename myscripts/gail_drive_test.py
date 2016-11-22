@@ -61,10 +61,10 @@ parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
 parser.add_argument('--radar_only',type=bool,default= False)
 
-parser.add_argument('--extract_core',type=bool,default=False)
-parser.add_argument('--extract_temporal',type=bool,default=False)
-parser.add_argument('--extract_well_behaved',type=bool,default=False)
-parser.add_argument('--extract_neighbor_features',type=bool,default=False)
+parser.add_argument('--extract_core',type=int,default=0)
+parser.add_argument('--extract_temporal',type=int,default=0)
+parser.add_argument('--extract_well_behaved',type=int,default=0)
+parser.add_argument('--extract_neighbor_features',type=int,default=0)
 
 #parser.add_argument('--extract_carlidar_rangerate',type=bool,default=False)
 #parser.add_argument('--carlidar_nbeams',type=int,default=0)
@@ -73,9 +73,9 @@ parser.add_argument('--extract_neighbor_features',type=bool,default=False)
 #parser.add_argument('--carlidar_max_range',type=float,default=0.0)
 #parser.add_argument('--roadlidar_max_range',type=float,default=0.0)
 
-parser.add_argument('--extract_carlidar',type=bool,default=True)
-parser.add_argument('--extract_roadlidar',type=bool,default=False)
-parser.add_argument('--extract_carlidar_rangerate',type=bool,default=True)
+parser.add_argument('--extract_carlidar',type=int,default=0)
+parser.add_argument('--extract_roadlidar',type=int,default=0)
+parser.add_argument('--extract_carlidar_rangerate',type=int,default=0)
 
 # Model Params
 parser.add_argument('--feature_type',type=str,default='cmn')

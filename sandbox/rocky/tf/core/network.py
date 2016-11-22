@@ -780,34 +780,47 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
 	    else:
 		l_in = input_layer
 
-	    l_in_is = []
-	    cum_sum = 0
-	    for i, (input_shape, flat_dim) in enumerate(zip(input_shapes,flat_dims)):
-		l_in_i = L.reshape(
-		    L.SliceLayer(
-		        l_in,
-		        indices=slice(cum_sum,cum_sum + flat_dim),
-		        name="l_in{}".format(i),
-		    ),
-		    ([0],) + input_shape,
-		    name="l_in{}_reshaped".format(i)
-		)
-		l_in_is.append(l_in_i)
-		cum_sum += flat_dim
+	#    l_in_is = []
+	#    cum_sum = 0
+	#    for i, (input_shape, flat_dim) in enumerate(zip(input_shapes,flat_dims)):
+	#	with tf.variable_scope("stream_{}".format(i)):
+	#	    import pdb; pdb.set_trace()
+	#	    l_in_slice =  L.SliceLayer(l_in,
+	#	            indices=slice(cum_sum,cum_sum + flat_dim),
+	#	            name="l_in{}".format(i))
+	#	    l_in_i = L.reshape(l_in_slice,
+	#	        ([0],) + input_shape,
+	#	        name="l_in{}_reshaped".format(i)
+	#	    )
+	#	    l_in_is.append(l_in_i)
+	#	    cum_sum += flat_dim
 
 	    self._nonlin = hidden_nonlinearity
 	    self._hidden_W_init = hidden_W_init
 	    self._hidden_b_init = hidden_b_init
 
 	    l_hids = []
-	    for l_in, boolean in zip(l_in_is,conv_streams):
-		if conv_streams[0] == 1:
-		    l_hid = self.conv_streams(l_in, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
-		else:
-		    l_hid = self.dense_stream(l_in, extra_hidden_sizes)
+	    import pdb
+	    cum_sum = 0
+	    for i, (input_shape, flat_dim, boolean) in enumerate(zip(input_shapes,flat_dims,conv_streams)):
+		with tf.variable_scope("stream_{}".format(i)):
+		    l_in_slice =  L.SliceLayer(l_in,
+		            indices=slice(cum_sum,cum_sum + flat_dim),
+		            name="l_in{}".format(i))
+		    l_in_i = L.reshape(l_in_slice,
+		        ([0],) + input_shape,
+		        name="l_in{}_reshaped".format(i)
+		    )
+		    cum_sum += flat_dim
 
-		l_hids.appen(l_hid)
+		    #pdb.set_trace()
+    		    if conv_streams[0] == 1:
+    		        l_hid = self.conv_stream(l_in_i, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
+    		    else:
+    		        l_hid = self.dense_stream(l_in_i, extra_hidden_sizes)
 
+		l_hids.append(l_hid)
+	    #pdb.set_trace()
 	    l_joint_hid = L.concat(
 	        l_hids,
 	        name="joint_hidden")
