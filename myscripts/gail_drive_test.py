@@ -61,9 +61,9 @@ parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
 parser.add_argument('--radar_only',type=bool,default= False)
 
-parser.add_argument('--extract_core',type=bool,default=True)
+parser.add_argument('--extract_core',type=bool,default=False)
 parser.add_argument('--extract_temporal',type=bool,default=False)
-parser.add_argument('--extract_well_behaved',type=bool,default=True)
+parser.add_argument('--extract_well_behaved',type=bool,default=False)
 parser.add_argument('--extract_neighbor_features',type=bool,default=False)
 
 #parser.add_argument('--extract_carlidar_rangerate',type=bool,default=False)
@@ -291,14 +291,26 @@ carlidar_input_shape = (1, env_dict["carlidar_nbeams"], 1)
 roadlidar_input_shape = (1, env_dict["roadlidar_nbeams"],1)
 
 # FIXME : this may not be in right order. Won't matter if all the dimensions are the same.
-cmn_input_shapes = [carlidar_input_shape]
+cmn_input_shapes = []
+conv_streams = []
+if sum(dense_input_shape) > 0:
+    cmn_input_shape.append(dense_input_shape)
+    conv_streams.append(0)
+
+if env_dict["carlidar_nbeams"] > 0:
+    cmn_input_shapes.append(carlidar_input_shape)
+    conv_streams.append(1)
 if env_dict["extract_carlidar_rangerate"]:
     cmn_input_shapes.append(carlidar_input_shape)
-cmn_input_shapes = [roadlidar_input_shape]
+    conv_streams.append(1)
+if env_dict["roadlidar_nbeams"] > 0:
+    for shape in  [roadlidar_input_shape] * env_dict["roadlidar_nlanes"]:
+        cmn_input_shape.append(shape)
+	conv_streams.append(1)
 
-cmn_input_shapes = [roadlidar_input_shape] * env_dict["roadlidar_nlanes"]
+import pdb; pdb.set_trace()
 
-assert np.prod(dense_input_shape) + np.prod(conv_input_shape) == np.prod(env.spec.observation_space.shape)
+assert np.prod(dense_input_shape) + sum([np.prod(shape) for shape in cmn_input_shapes]) == np.prod(env.spec.observation_space.shape)
 
 # create policy
 if args.policy_type == 'mlp':
@@ -323,6 +335,7 @@ elif args.policy_type == 'gru':
         feat_mlp = ConvMergeNetwork('conv_policy', cmn_input_shapes,
                                     args.cnm_hspec[-1], args.cnm_hspec[:-1], args.conv_filters, args.conv_filter_sizes,
                                     args.conv_strides, [args.conv_pad]*len(args.conv_strides), extra_hidden_sizes= p_hspec,
+				    conv_streams = conv_streams,
                                     hidden_nonlinearity=nonlinearity,output_nonlinearity=nonlinearity)
     else:
         raise NotImplementedError
@@ -367,8 +380,12 @@ if args.reward_type == 'mlp':
                        batch_normalization= args.batch_normalization
                        )
 elif args.reward_type == 'cmn':
-    reward = RewardCMN('conv_reward', conv_input_shape,(np.prod(dense_input_shape) + act_dim,), 1, args.conv_hspec,
+    if np.prod(dense_input_shape) == 0:
+	cmn_input_shapes = [(np.prod(dense_input_shape) + act_dim,)] + cmn_input_shapes
+	conv_streams = [0] + conv_streams
+    reward = RewardCMN('conv_reward', cmn_input_shapes, 1, args.conv_hspec,
                  args.conv_filters, args.conv_filter_sizes, args.conv_strides, [args.conv_pad]*len(args.conv_strides),
+		 conv_streams = conv_streams,
                  extra_hidden_sizes= p_hspec, hidden_nonlinearity=nonlinearity,output_nonlinearity=tf.nn.sigmoid)
 else:
     raise NotImplementedError
