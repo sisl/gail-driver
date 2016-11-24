@@ -764,7 +764,6 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
                  output_nonlinearity=None,
                  input_var=None, input_layer=None):
         Serializable.quick_init(self, locals())
-
 	assert len(input_shapes) == len(conv_streams)
 
         if extra_hidden_sizes is None:
@@ -800,7 +799,6 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
 	    self._hidden_b_init = hidden_b_init
 
 	    l_hids = []
-	    import pdb
 	    cum_sum = 0
 	    for i, (input_shape, flat_dim, boolean) in enumerate(zip(input_shapes,flat_dims,conv_streams)):
 		with tf.variable_scope("stream_{}".format(i)):
@@ -814,7 +812,7 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
 		    cum_sum += flat_dim
 
 		    #pdb.set_trace()
-    		    if conv_streams[0] == 1:
+                    if bool(boolean):
     		        l_hid = self.conv_stream(l_in_i, conv_filters, conv_filter_sizes, conv_strides, conv_pads)
     		    else:
     		        l_hid = self.dense_stream(l_in_i, extra_hidden_sizes)
@@ -883,7 +881,7 @@ class ConvMergeNetwork(LayersPowered, Serializable,DeterministicNetwork):
                 l_extra_hid,
                 num_units=hidden_size,
                 nonlinearity=self._nonlin,
-                name="extra_hidden_%d" % idx,
+                name="dense_hidden_%d" % idx,
                 W=self._hidden_W_init,
                 b=self._hidden_b_init,
             )
