@@ -77,6 +77,9 @@ parser.add_argument('--extract_carlidar',type=int,default=0)
 parser.add_argument('--extract_roadlidar',type=int,default=0)
 parser.add_argument('--extract_carlidar_rangerate',type=int,default=0)
 
+parser.add_argument('--carlidar_nbeams',type=int,default=64)
+parser.add_argument('--roadlidar_nbeams',type=int,default=64)
+
 # Model Params
 parser.add_argument('--feature_type',type=str,default='cmn')
 parser.add_argument('--policy_type',type=str,default='mlp')
@@ -210,11 +213,13 @@ elif args.env_name == "Auto2D":
     #expert_data_path = expert_trajs_path + '/features%i_mtl100_seed456_trajdata%s_openaiformat.h5'%(
         #args.n_features,''.join([str(n) for n in args.trajdatas]))
     expert_data_path = expert_trajs_path + \
-        '/core{}_temp{}_well{}_neig{}_carl{}_roal{}_clrr{}_mtl{}_seed{}.h5'.format(
+        '/core{}_temp{}_well{}_neig{}_carl{}_roal{}_clrr{}_mtl{}_clb{}_rlb{}_rll{}_clmr{}_rlmr{}_seed{}.h5'.format(
         int(args.extract_core), int(args.extract_temporal), int(args.extract_well_behaved),
         int(args.extract_neighbor_features), int(args.extract_carlidar), int(args.extract_roadlidar),
-        int(args.extract_carlidar_rangerate), 100, 456)
+        int(args.extract_carlidar_rangerate), 100, args.carlidar_nbeams, args.roadlidar_nbeams,2,100,50,456)
 
+    #mtl100_clb64_rlb64_rll2_clmr100_rlmr50_seed456
+    #
     env_dict = {'trajdata_indeces': args.trajdatas,
                 'use_playback_reactive': args.use_playback_reactive,
                 'extract_core':bool(args.extract_core),
@@ -222,8 +227,8 @@ elif args.env_name == "Auto2D":
                 'extract_well_behaved':bool(args.extract_well_behaved),
                 'extract_neighbor_features':bool(args.extract_neighbor_features),
                 'extract_carlidar_rangerate':bool(args.extract_carlidar_rangerate),
-                'carlidar_nbeams':20,
-                'roadlidar_nbeams':20,
+                'carlidar_nbeams':args.carlidar_nbeams,
+                'roadlidar_nbeams':args.roadlidar_nbeams,
                 'roadlidar_nlanes':2,
                 'carlidar_max_range':100.,
                 'roadlidar_max_range':100.,
@@ -294,7 +299,7 @@ roadlidar_input_shape = (1, env_dict["roadlidar_nbeams"],1)
 cmn_input_shapes = []
 conv_streams = []
 if sum(dense_input_shape) > 0:
-    cmn_input_shape.append(dense_input_shape)
+    cmn_input_shapes.append(dense_input_shape)
     conv_streams.append(0)
 
 if env_dict["carlidar_nbeams"] > 0:
@@ -305,12 +310,10 @@ if env_dict["extract_carlidar_rangerate"]:
     conv_streams.append(1)
 if env_dict["roadlidar_nbeams"] > 0:
     for shape in  [roadlidar_input_shape] * env_dict["roadlidar_nlanes"]:
-        cmn_input_shape.append(shape)
+        cmn_input_shapes.append(shape)
 	conv_streams.append(1)
 
-import pdb; pdb.set_trace()
-
-assert np.prod(dense_input_shape) + sum([np.prod(shape) for shape in cmn_input_shapes]) == np.prod(env.spec.observation_space.shape)
+assert sum([np.prod(shape) for shape in cmn_input_shapes]) == np.prod(env.spec.observation_space.shape)
 
 # create policy
 if args.policy_type == 'mlp':
@@ -381,8 +384,12 @@ if args.reward_type == 'mlp':
                        )
 elif args.reward_type == 'cmn':
     if np.prod(dense_input_shape) == 0:
-	cmn_input_shapes = [(np.prod(dense_input_shape) + act_dim,)] + cmn_input_shapes
-	conv_streams = [0] + conv_streams
+        conv_streams = [0] + conv_streams
+    else:
+	cmn_input_shapes = cmn_input_shapes[1:]
+
+    cmn_input_shapes = [(np.prod(dense_input_shape) + act_dim,)] + cmn_input_shapes
+
     reward = RewardCMN('conv_reward', cmn_input_shapes, 1, args.conv_hspec,
                  args.conv_filters, args.conv_filter_sizes, args.conv_strides, [args.conv_pad]*len(args.conv_strides),
 		 conv_streams = conv_streams,
