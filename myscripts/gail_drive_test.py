@@ -295,6 +295,14 @@ total_conv_input_shape = (1,env_dict["carlidar_nbeams"] + \
 carlidar_input_shape = (1, env_dict["carlidar_nbeams"], 1)
 roadlidar_input_shape = (1, env_dict["roadlidar_nbeams"],1)
 
+if env_dict["extract_temporal"]:
+    temporal_indices = range(0,6)
+    if env_dict["extract_core"]:
+	temporal_indices = [t_ix + 8 for t_ix in temporal_indices]
+
+else:
+    temporal_indices = None
+
 # FIXME : this may not be in right order. Won't matter if all the dimensions are the same.
 cmn_input_shapes = []
 conv_streams = []
@@ -428,6 +436,7 @@ if not args.only_trpo:
         fo_optimizer_cls= tf.train.AdamOptimizer,
         load_params_args = load_param_args,
         include_safety = args.include_safety,
+        temporal_indices = temporal_indices,
         fo_optimizer_args= dict(learning_rate = args.adam_lr,
                                 beta1 = args.adam_beta1,
                                 beta2 = args.adam_beta2,
