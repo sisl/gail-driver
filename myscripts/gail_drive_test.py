@@ -77,8 +77,10 @@ parser.add_argument('--extract_carlidar',type=int,default=0)
 parser.add_argument('--extract_roadlidar',type=int,default=0)
 parser.add_argument('--extract_carlidar_rangerate',type=int,default=0)
 
-parser.add_argument('--carlidar_nbeams',type=int,default=64)
-parser.add_argument('--roadlidar_nbeams',type=int,default=64)
+parser.add_argument('--carlidar_nbeams',type=int,default=20)
+parser.add_argument('--roadlidar_nbeams',type=int,default=20)
+
+parser.add_argument('--temporal_noise_thresh',type=int,default=100)
 
 # Model Params
 parser.add_argument('--feature_type',type=str,default='cmn')
@@ -276,6 +278,13 @@ else:
 
     expert_data.update({'act':expert_data_stacked['exa_Bstacked_Da']})
 
+#import pdb; pdb.set_trace()
+#import h5py
+#with h5py.File("normalize_best_w_temp.h5","a") as hf:
+#	hf.create_dataset("initial_obs_mean",data=initial_obs_mean)
+#	hf.create_dataset("initial_obs_std",data=initial_obs_std)
+#pdb.set_trace()
+
 g_env = normalize(GymEnv(env_id),
                   initial_obs_mean= initial_obs_mean,
                   initial_obs_var= initial_obs_var,
@@ -437,6 +446,7 @@ if not args.only_trpo:
         load_params_args = load_param_args,
         include_safety = args.include_safety,
         temporal_indices = temporal_indices,
+	temporal_noise_thresh = args.temporal_noise_thresh,
         fo_optimizer_args= dict(learning_rate = args.adam_lr,
                                 beta1 = args.adam_beta1,
                                 beta2 = args.adam_beta2,
@@ -474,7 +484,10 @@ exp_dir = date+'/'+exp_name
 log_dir = osp.join(config.LOG_DIR, exp_dir)
 
 policy.set_log_dir(log_dir)
+
 runner = RLLabRunner(algo, args, exp_dir)
+
+policy.save_extra_data(["initial_obs_mean","initial_obs_std"],[initial_obs_mean, initial_obs_std])
 runner.train()
 
 halt= True

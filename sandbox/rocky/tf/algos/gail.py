@@ -36,7 +36,8 @@ class GAIL(TRPO):
             freeze_upper = 1.0,
             freeze_lower = 0.5,
             include_safety= False,
-            temporal_indicies=None
+            temporal_indices=None,
+	    temporal_noise_thresh=100,
             **kwargs):
 
         super(GAIL, self).__init__(optimizer=optimizer, optimizer_args=optimizer_args, **kwargs)
@@ -48,7 +49,8 @@ class GAIL(TRPO):
         self.act_std = act_std
 
         self.include_safety = include_safety
-        self.temporal_indices = temporal_indicies
+        self.temporal_indices = temporal_indices
+	self.temporal_noise_thresh = temporal_noise_thresh
 
         #self.global_step = tf.Variable(0, trainable=False, name='global_step')
         #decayed_learning_rate = tf.train.exponential_decay(fo_optimizer_args['learning_rate'], self.global_step.initialized_value(),
@@ -199,7 +201,7 @@ class GAIL(TRPO):
 
             path['env_rewards'] = path['rewards']
             rewards = np.squeeze( self.reward_model.compute_reward(X) )
-            if itr < 100 and self.temporal_indices is not None:
+            if itr < self.temporal_noise_thresh and self.temporal_indices is not None:
                 X[:,self.temporal_indices] = np.random.normal(0,1,X[:,self.temporal_indices].shape)
 
             if rewards.ndim == 0:

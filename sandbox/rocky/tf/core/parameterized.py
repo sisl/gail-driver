@@ -171,6 +171,22 @@ class Model(Parameterized):
                 dset[v.name] = val
         print 'done.'
 
+    def save_extra_data(self, names, data):
+        print 'saving model...'
+        if not hasattr(self, 'log_dir'):
+            log_dir = Model._log_dir
+        else:
+            log_dir = self.log_dir
+        filename = log_dir + "/" + self.save_name + '.h5'
+        sess = tf.get_default_session()
+
+	assert len(names) == len(data)
+        with h5py.File(filename, 'a') as hf:
+	     for name, d in zip(names,data):
+		hf.create_dataset(name,data=d)
+
+        print 'done.'
+
     def set_log_dir(self, log_dir):
         self.log_dir = log_dir
 
