@@ -223,6 +223,7 @@ elif args.env_name == "Auto2D":
     #mtl100_clb64_rlb64_rll2_clmr100_rlmr50_seed456
     #
     env_dict = {'trajdata_indeces': args.trajdatas,
+		'nsteps': args.max_traj_len,
                 'use_playback_reactive': args.use_playback_reactive,
                 'extract_core':bool(args.extract_core),
                 'extract_temporal':bool(args.extract_temporal),
