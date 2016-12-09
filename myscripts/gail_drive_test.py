@@ -286,14 +286,6 @@ else:
 #	hf.create_dataset("initial_obs_std",data=initial_obs_std)
 #pdb.set_trace()
 
-g_env = normalize(GymEnv(env_id),
-                  initial_obs_mean= initial_obs_mean,
-                  initial_obs_var= initial_obs_var,
-                  normalize_obs= True,
-                  running_obs= False)
-
-env = TfEnv(g_env)
-
 # compute dimensions of convolution-component and no-conv features.
 dense_input_shape = (env_dict["extract_core"] * 8 + env_dict["extract_temporal"] * 6 + \
     env_dict["extract_well_behaved"] * 3 + env_dict["extract_neighbor_features"] * 28,)
@@ -312,6 +304,14 @@ if env_dict["extract_temporal"]:
 
 else:
     temporal_indices = None
+
+g_env = normalize(GymEnv(env_id),
+                  initial_obs_mean= initial_obs_mean,
+                  initial_obs_var= initial_obs_var,
+                  normalize_obs= True,
+                  running_obs= False,
+		  noise_indices= temporal_indices)
+env = TfEnv(g_env)
 
 # FIXME : this may not be in right order. Won't matter if all the dimensions are the same.
 cmn_input_shapes = []

@@ -39,7 +39,7 @@ class GAIL(TRPO):
             temporal_indices=None,
 	    temporal_noise_thresh=100,
             **kwargs):
-
+	kwargs['temporal_noise_thresh'] = temporal_noise_thresh
         super(GAIL, self).__init__(optimizer=optimizer, optimizer_args=optimizer_args, **kwargs)
         self.reward_model = reward
         self.expert_data = expert_data
@@ -99,6 +99,7 @@ class GAIL(TRPO):
 
     @overrides
     def optimize_policy(self, itr, samples_data):
+
         all_input_values = tuple(ext.extract(
             samples_data,
             "observations", "actions", "advantages"
@@ -141,6 +142,7 @@ class GAIL(TRPO):
 
         obs_ex_batch = obs_ex[p_ex]
         act_ex_batch = act_ex[p_ex]
+
         trans_Bpi_Do = np.column_stack((obs_pi_batch,act_pi_batch))
         trans_Bex_Do = np.column_stack((obs_ex_batch,act_ex_batch))
 
@@ -203,17 +205,12 @@ class GAIL(TRPO):
             fraction_safe = []
 
         for path in paths:
-            if itr < self.temporal_noise_thresh and self.temporal_indices is not None:
-                path['observations'][:,self.temporal_indices] = \
-			np.random.normal(0,1,path['observations'][:,self.temporal_indices].shape)
-			#inp.zeros_like(path['observations'][:,self.temporal_indices])
-
             X = np.column_stack((path['observations'],path['actions']))
             if self.include_safety:
                 X = X[:,:-1]
 
             path['env_rewards'] = path['rewards']
-            rewards = np.squeeze( self.reward_model.compute_reward(X) )
+	    rewards = np.squeeze( self.reward_model.compute_reward(X) )
 
             if rewards.ndim == 0:
                 rewards = rewards[np.newaxis]

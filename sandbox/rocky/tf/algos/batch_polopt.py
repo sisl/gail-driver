@@ -86,6 +86,7 @@ class BatchPolopt(RLAlgorithm):
         if sampler_args is None:
             sampler_args = dict()
         self.sampler = sampler_cls(self, **sampler_args)
+	self.temporal_noise_thresh = kwargs['temporal_noise_thresh']
         self.init_opt()
 
     def start_worker(self):
@@ -112,6 +113,9 @@ class BatchPolopt(RLAlgorithm):
             for itr in range(self.start_itr, self.n_itr):
                 self.policy.save_params(itr)
                 itr_start_time = time.time()
+		if itr >= self.temporal_noise_thresh:
+		    self.env._noise_indicies = None
+
                 with logger.prefix('itr #%d | ' % itr):
                     logger.log("Obtaining samples...")
                     paths = self.obtain_samples(itr)
