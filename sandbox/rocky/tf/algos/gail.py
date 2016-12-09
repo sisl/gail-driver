@@ -113,6 +113,11 @@ class GAIL(TRPO):
         obs_pi = all_input_values[0].reshape((-1, np.prod(self.env.observation_space.shape)))
         act_pi = all_input_values[1].reshape((-1, np.prod(self.env.action_space.shape)))
 
+	# filter zero rows
+	nonzero_ix = ~np.all(obs_pi == 0, axis=1)
+	obs_pi = obs_pi[nonzero_ix]
+	act_pi = act_pi[nonzero_ix]
+
         # normalize actions . observations are normalized by environment
         act_pi -= self.act_mean
         act_pi /= self.act_std
@@ -213,6 +218,5 @@ class GAIL(TRPO):
         if self.include_safety:
             logger.record_tabular('aveFactionSafe', np.mean(fraction_safe))
         logger.record_tabular('pathLengths',np.mean(path_lengths))
-
         return self.sampler.process_samples(itr, paths)
 
