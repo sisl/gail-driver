@@ -10,20 +10,17 @@ from rllab.envs.gym_env import GymEnv
 import rltools.util
 from rltools.envs.julia_sim import JuliaEnvWrapper, FollowingWrapper, JuliaEnv
 
-from sandbox import RLLabRunner
+from tf_rllab import RLLabRunner
 
-from tf.algos.trpo import TRPO
-from tf.algos.gail import GAIL
-from tf.envs.base import TfEnv
+from tf_rllab.algos.trpo import TRPO
+from tf_rllab.algos.gail import GAIL
+from tf_rllab.envs.base import TfEnv
 
-from tf.policies.categorical_mlp_policy import CategoricalMLPPolicy
-from tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
+from tf_rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
+from tf_rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
 
-from tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
-from tf.policies.gaussian_gru_policy import GaussianGRUPolicy
-
-from tf.core.network import MLP, RewardMLP, BaselineMLP
-from tf.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
+from tf_rllab.core.network import MLP, RewardMLP, BaselineMLP
+from tf_rllab.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
 
 import tensorflow as tf
 import numpy as np
@@ -93,13 +90,9 @@ parser.add_argument('--cnm_hspec',type=int,nargs='+',default=[128])
 parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
 
 parser.add_argument('--nonlinearity',type=str,default='tanh')
-parser.add_argument('--batch_normalization',type=bool,default=False)
 
 parser.add_argument('--init_policy',type=str,default=None)
 parser.add_argument('--include_activation',type=bool,default=False)
-
-#args.conv_filters, args.conv_filter_sizes, args.conv_strides, args.conv_pads,
-#extra_hidden_sizes= args.conv_hspec,
 
 # TRPO Params
 parser.add_argument('--trpo_batch_size', type=int, default= 40 * 100)
@@ -114,12 +107,9 @@ parser.add_argument('--vf_cg_damping', type=float, default=0.01)
 
 parser.add_argument('--trpo_step_size',type=float,default=0.01)
 
-parser.add_argument('--only_trpo',type=bool,default=False)
-
 # GAILS Params
 parser.add_argument('--gail_batch_size', type=int, default= 1024)
 
-# parser.add_argument('--decay', type=float, nargs=2, default=[0.96,10.])
 parser.add_argument('--adam_steps',type=int,default=1)
 parser.add_argument('--adam_lr', type=float, default=0.00005)
 parser.add_argument('--adam_beta1',type=float,default=0.9)
@@ -137,11 +127,7 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 
 args = parser.parse_args()
 
-assert not args.batch_normalization, "Batch normalization not implemented."
-
-from rl_filepaths import expert_trajs_path, rllab_path
-
-assert not args.batch_normalization, "Batch normalization not implemented."
+from rllab.config_personal import expert_trajs_path, rllab_path
 
 if args.nonlinearity == 'tanh':
     nonlinearity =tf.nn.tanh
@@ -246,20 +232,16 @@ if env_dict["extract_temporal"]:
 else:
     temporal_indices = None
 
-
-# FIXME : this may not be in right order. Won't matter if all the dimensions are the same.
-conv_streams = []
 if sum(dense_input_shape) > 0:
     conv_streams.append(0)
 
 # create policy
 if args.policy_type == 'mlp':
     policy = GaussianMLPPolicy('mlp_policy', env.spec, hidden_sizes= p_hspec,
-                               std_hidden_nonlinearity=nonlinearity,hidden_nonlinearity=nonlinearity,
-                               batch_normalization=args.batch_normalization
+                               std_hidden_nonlinearity=nonlinearity,hidden_nonlinearity=nonlinearity
                                )
     if args.policy_ckpt_name is not None:
-        withtf.Session() as sess:
+        with tf.Session() as sess:
             policy.load_params(args.policy_ckpt_name, args.policy_ckpt_itr)
 
 elif args.policy_type == 'gru':
@@ -267,10 +249,9 @@ elif args.policy_type == 'gru':
 		feat_mlp = None
 	else:
 		feat_mlp = MLP('mlp_policy', p_hspec[-1], p_hspec[:-1], nonlinearity, nonlinearity,
-					   input_shape= (np.prod(env.spec.observation_space.shape),),
-					   batch_normalization=args.batch_normalization)
+					   input_shape= (np.prod(env.spec.observation_space.shape),))
 
-    policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
+	policy = GaussianGRUPolicy(name= 'gru_policy', env_spec= env.spec,
                                hidden_dim= args.gru_dim,
                               feature_network=feat_mlp,
                               state_include_action=False)
@@ -292,8 +273,7 @@ elif args.baseline_type == 'mlp':
                            hidden_sizes= b_hspec,
                            hidden_nonlinearity=nonlinearity,
                            output_nonlinearity=None,
-                           input_shape=(np.prod(env.spec.observation_space.shape),),
-                           batch_normalization=args.batch_normalization)
+                           input_shape=(np.prod(env.spec.observation_space.shape),))
     baseline.initialize_optimizer()
 else:
     raise NotImplementedError
@@ -304,9 +284,8 @@ if args.include_safety:
 else:
     act_dim = env.action_dim
 
-reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearitytf.nn.sigmoid,
-				   input_shape= (np.prod(env.spec.observation_space.shape) + act_dim,),
-				   batch_normalization= args.batch_normalization
+reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity, tf.nn.sigmoid,
+				   input_shape= (np.prod(env.spec.observation_space.shape) + act_dim,)
 				   )
 
 if args.init_policy is not None:
@@ -325,7 +304,6 @@ algo = GAIL(
 	max_path_length=args.max_traj_len,
 	n_itr=args.n_iter,
 	discount=args.discount,
-	#step_size=0.01,
 	step_size=args.trpo_step_size,
 	force_batch_sampler= True,
 	whole_paths= True,

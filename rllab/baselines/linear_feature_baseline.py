@@ -2,7 +2,6 @@ from rllab.baselines.base import Baseline
 from rllab.misc.overrides import overrides
 import numpy as np
 
-
 class LinearFeatureBaseline(Baseline):
     def __init__(self, env_spec, reg_coeff=1e-5):
         self._coeffs = None
