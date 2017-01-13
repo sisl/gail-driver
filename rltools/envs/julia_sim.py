@@ -1,5 +1,3 @@
-# git commit -m "weights are now rewards rather than costs, so are negative, and are now passed to the simparams type.
-
 
 import julia
 import math
@@ -11,7 +9,8 @@ import os
 
 import time
 
-from path_to_Auto2D import LQG_path, auto1D_path, auto2D_path, pulltraces_path, passive_aggressive_path
+#from path_to_Auto2D import LQG_path, auto1D_path, auto2D_path, pulltraces_path, passive_aggressive_path
+from rllab.config_personal import auto2D_path
 
 from drive import DriveEnv_1D
 
@@ -23,10 +22,7 @@ else:
     GX = False
 
 julia_env_dict = {}
-julia_env_dict['PassiveAggressive'] = passive_aggressive_path
-julia_env_dict['Auto2D'] = auto2D_path
-julia_env_dict['Auto1D'] = auto1D_path
-julia_env_dict['LQG'] = LQG_path
+julia_env_dict["Auto2D"] = auto2D_path
 
 class JuliaEnv(object):
     def __init__(self,
@@ -56,20 +52,6 @@ class JuliaEnv(object):
         return observation
 
     def render(self):
-        # plt.ion()
-        # plt.show()
-
-        # self.ax.cla()
-
-        # img = self.j.render(self.simparams, np.zeros((500,500)).astype('uint32'))
-        # #img=self.j.retrieve_frame_data(500, 500, self.simparams)
-        # self.ax.imshow(img, cmap=plt.get_cmap('bwr'))
-        # #self.ax.imshow(img, cmap=plt.get_cmap('seismic'))
-
-        # plt.draw()
-
-        # plt.pause(1e-6)
-
         return
 
     def save_gif(self, actions, filename):
@@ -425,25 +407,9 @@ class JuliaEnvWrapper(JuliaEnv):
                                               JuliaEnvWrapper._batch_size,
                                               JuliaEnvWrapper._param_dict)
 
-    #def get_param_values(self):
-        ## needed to convert env to a "TfEnv" object. May expand later.
-        #return None
-
     @classmethod
     def set_initials(cls, env_name, batch_size, param_dict):
         cls._env_name = env_name
         cls._batch_size = batch_size
         cls._param_dict = param_dict
 
-class FollowingWrapper(DriveEnv_1D):
-    _distance = None
-
-    def __init__(self):
-        if FollowingWrapper._distance is None:
-            raise AttributeError, "Following distance must be initialized."
-        reward_fn = lambda x : -np.square(x - FollowingWrapper._distance)
-        super(FollowingWrapper, self).__init__(reward_fn = reward_fn)
-
-    @classmethod
-    def set_initials(cls, distance):
-        cls._distance = distance

@@ -43,6 +43,7 @@ end
 
 include("../validation/load_train_test_split.jl")
 include("../pull_traces/multifeatureset.jl")
+include("../validation/RootDir.jl")
 
 function get_train_segments(trajdatas::Dict{Int, Trajdata}, nsteps::Int)
 
@@ -173,7 +174,7 @@ function SimParams(trajdatas::Dict{Int, Trajdata}, segments::Vector{TrajdataSegm
         )
     playback_reactive_scene_buffer = Scene()
 
-    filepath = "../validation/models/Dec8/policy_300.h5"
+    filepath = joinpath(ROOT_FILEPATH,"julia","validation","models","gail_policy.h5")
     iteration = 438
     driver_model = load_gru_driver(filepath, iteration)
 

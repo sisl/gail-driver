@@ -5,8 +5,6 @@ import rllab.plotter as plotter
 from tf_rllab.policies.base import Policy
 import tensorflow as tf
 from tf_rllab.samplers.batch_sampler import BatchSampler
-from tf_rllab.samplers.vectorized_sampler import VectorizedSampler
-
 
 class BatchPolopt(RLAlgorithm):
     """
@@ -79,10 +77,7 @@ class BatchPolopt(RLAlgorithm):
         self.whole_paths = whole_paths
         self.fixed_horizon = fixed_horizon
         if sampler_cls is None:
-            if self.policy.vectorized and not force_batch_sampler:
-                sampler_cls = VectorizedSampler
-            else:
-                sampler_cls = BatchSampler
+            sampler_cls = BatchSampler
         if sampler_args is None:
             sampler_args = dict()
         self.sampler = sampler_cls(self, **sampler_args)

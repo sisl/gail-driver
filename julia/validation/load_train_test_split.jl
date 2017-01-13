@@ -3,7 +3,7 @@ using NGSIM
 using HDF5
 
 include("RootDir.jl")
-const TRAIN_TEST_SPLIT_FILEPATH = joinpath(ROOT_FILEPATH, "2d_drive_data", "NGSIM_train_test_split.h5")
+const TRAIN_TEST_SPLIT_FILEPATH = joinpath(ROOT_FILEPATH, "data", "NGSIM_train_test_split.h5")
 
 export
     load_assignment,

@@ -1,7 +1,6 @@
 from .env_spec import EnvSpec
 import collections
 
-
 class Env(object):
     def step(self, action):
         """
@@ -91,3 +90,4 @@ def Step(observation, reward, done, **kwargs):
     Put extra diagnostic info in the kwargs
     """
     return _Step(observation, reward, done, kwargs)
+

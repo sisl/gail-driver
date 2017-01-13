@@ -6,15 +6,16 @@ from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.envs.normalized_env import normalize
 
 from rllab.envs.gym_env import GymEnv
+from rllab.envs.tf_env import TfEnv
 
 import rltools.util
-from rltools.envs.julia_sim import JuliaEnvWrapper, FollowingWrapper, JuliaEnv
+from rltools.envs.julia_sim import JuliaEnvWrapper, JuliaEnv
 
 from tf_rllab import RLLabRunner
 
 from tf_rllab.algos.trpo import TRPO
 from tf_rllab.algos.gail import GAIL
-from tf_rllab.envs.base import TfEnv
+#from tf_rllab.envs.base import TfEnv
 
 from tf_rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from tf_rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
@@ -45,7 +46,7 @@ parser.add_argument('--trajdatas',type=int,nargs='+',default=[1,2,3,4,5,6])
 parser.add_argument('--n_features',type=int,default=45)
 parser.add_argument('--limit_trajs',type=int,default=12000)
 parser.add_argument('--max_traj_len',type=int,default=100)  # max length of a trajectory (ts)
-parser.add_argument('--env_name',type=str,default="Following")
+parser.add_argument('--env_name',type=str,default="Auto2D")
 parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize_obs',type=bool,default= True)
 parser.add_argument('--normalize_act',type=bool,default=False)
@@ -57,14 +58,13 @@ parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
 parser.add_argument('--radar_only',type=bool,default= False)
 
-parser.add_argument('--extract_core',type=int,default=0)
-parser.add_argument('--extract_temporal',type=int,default=0)
-parser.add_argument('--extract_well_behaved',type=int,default=0)
+parser.add_argument('--extract_core',type=int,default=1)
+parser.add_argument('--extract_well_behaved',type=int,default=1)
 parser.add_argument('--extract_neighbor_features',type=int,default=0)
 
-parser.add_argument('--extract_carlidar',type=int,default=0)
+parser.add_argument('--extract_carlidar',type=int,default=1)
 parser.add_argument('--extract_roadlidar',type=int,default=0)
-parser.add_argument('--extract_carlidar_rangerate',type=int,default=0)
+parser.add_argument('--extract_carlidar_rangerate',type=int,default=1)
 
 parser.add_argument('--carlidar_nbeams',type=int,default=20)
 parser.add_argument('--roadlidar_nbeams',type=int,default=20)
@@ -127,7 +127,7 @@ parser.add_argument('--env_r_weight',type=float,default=0.0)
 
 args = parser.parse_args()
 
-from rllab.config_personal import expert_trajs_path, rllab_path
+from rllab.config_personal import expert_trajs_path, model_path
 
 if args.nonlinearity == 'tanh':
     nonlinearity =tf.nn.tanh
@@ -152,7 +152,7 @@ else:
 env_id = "Auto2D-v0"
 expert_data_path = expert_trajs_path + \
 	'/core{}_temp{}_well{}_neig{}_carl{}_roal{}_clrr{}_mtl{}_clb{}_rlb{}_rll{}_clmr{}_rlmr{}_seed{}.h5'.format(
-	int(args.extract_core), int(args.extract_temporal), int(args.extract_well_behaved),
+	int(args.extract_core), 0, int(args.extract_well_behaved),
 	int(args.extract_neighbor_features), int(args.extract_carlidar), int(args.extract_roadlidar),
 	int(args.extract_carlidar_rangerate), 100, args.carlidar_nbeams, args.roadlidar_nbeams,2,100,50,456)
 
@@ -160,7 +160,7 @@ env_dict = {'trajdata_indeces': args.trajdatas,
 	'nsteps': args.max_traj_len,
 			'use_playback_reactive': args.use_playback_reactive,
 			'extract_core':bool(args.extract_core),
-			'extract_temporal':bool(args.extract_temporal),
+			'extract_temporal':False,
 			'extract_well_behaved':bool(args.extract_well_behaved),
 			'extract_neighbor_features':bool(args.extract_neighbor_features),
 			'extract_carlidar_rangerate':bool(args.extract_carlidar_rangerate),
@@ -183,22 +183,24 @@ gym.envs.register(
 	timestep_limit=999,
 	reward_threshold=195.0,
 )
-g_env = normalize(GymEnv(env_id),
-                  initial_obs_mean= initial_obs_mean,
-                  initial_obs_var= initial_obs_var,
-                  normalize_obs= True,
-                  running_obs= False,
-		  noise_indices= temporal_indices)
-env = TfEnv(g_env)
 
 expert_data, _ = rltools.util.load_trajs(expert_data_path,args.limit_trajs, swap = False)
 expert_data_stacked  = rltools.util.prepare_trajs(expert_data['exobs_B_T_Do'], expert_data['exa_B_T_Da'], expert_data['exlen_B'],
 												  labeller= None)
 
+# normalization statistics extracted from expert dataset
 initial_obs_mean = expert_data_stacked['exobs_Bstacked_Do'].mean(axis= 0)
 initial_obs_std = expert_data_stacked['exobs_Bstacked_Do'].std(axis= 0)
 initial_obs_std[initial_obs_std < args.norm_tol] = 1.0
 initial_obs_var = np.square(initial_obs_std)
+
+# create normalize environments
+g_env = normalize(GymEnv(env_id),
+                  initial_obs_mean= initial_obs_mean,
+                  initial_obs_var= initial_obs_var,
+                  normalize_obs= True,
+                  running_obs= False)
+env = TfEnv(g_env)
 
 # normalize observations
 if args.normalize_obs:
@@ -219,7 +221,7 @@ else:
     expert_data.update({'act':expert_data_stacked['exa_Bstacked_Da']})
 
 # compute dimensions of convolution-component and no-conv features.
-dense_input_shape = (env_dict["extract_core"] * 8 + env_dict["extract_temporal"] * 6 + \
+dense_input_shape = (env_dict["extract_core"] * 8 + \
     env_dict["extract_well_behaved"] * 3 + env_dict["extract_neighbor_features"] * 28,)
 
 roadlidar_input_shape = (1, env_dict["roadlidar_nbeams"],1)
@@ -231,9 +233,6 @@ if env_dict["extract_temporal"]:
 
 else:
     temporal_indices = None
-
-if sum(dense_input_shape) > 0:
-    conv_streams.append(0)
 
 # create policy
 if args.policy_type == 'mlp':
@@ -327,13 +326,13 @@ algo = GAIL(
 )
 
 date= calendar.datetime.date.today().strftime('%y-%m-%d')
-if date not in os.listdir(rllab_path+'/data'):
-    os.mkdir(rllab_path+'/data/'+date)
+if date not in os.listdir(model_path):
+    os.mkdir(model_path+'/'+date)
 
 c = 0
 exp_name = args.exp_name + '-'+str(c)
 
-while exp_name in os.listdir(rllab_path+'/data/'+date+'/'):
+while exp_name in os.listdir(model_path+'/'+date+'/'):
     c += 1
     exp_name = args.exp_name + '-'+str(c)
 
