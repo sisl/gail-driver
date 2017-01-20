@@ -325,6 +325,7 @@ algo = GAIL(
 	optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
 )
 
+# use date and time to create new logging directory for each run
 date= calendar.datetime.date.today().strftime('%y-%m-%d')
 if date not in os.listdir(model_path):
     os.mkdir(model_path+'/'+date)
@@ -341,9 +342,8 @@ log_dir = osp.join(config.LOG_DIR, exp_dir)
 
 policy.set_log_dir(log_dir)
 
+# run experiment
 runner = RLLabRunner(algo, args, exp_dir)
-
 policy.save_extra_data(["initial_obs_mean","initial_obs_std"],[initial_obs_mean, initial_obs_std])
 runner.train()
 
-halt= True

@@ -46,7 +46,7 @@ class DataLoader():
         return s, a
 
     def _load_data(self, extract_temporal):
-        data_dir = '../trpo_vehicle/2d_drive_data/'
+        data_dir = '../julia/2d_drive_data/'
         filenames = ['data_trajdata_i101_trajectories-0750am-0805am', 'data_trajdata_i101_trajectories-0805am-0820am', 
                     'data_trajdata_i101_trajectories-0820am-0835am', 'data_trajdata_i80_trajectories-0400-0415',
                     'data_trajdata_i80_trajectories-0500-0515', 'data_trajdata_i80_trajectories-0515-0530']

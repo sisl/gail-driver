@@ -32,7 +32,9 @@ function GaussianMLPDriver{A <: DriveAction}(::Type{A}, net::ForwardNet, extract
     rec::SceneRecord = SceneRecord(2, context.Δt),
     )
 
+	println("Hit a!")
     pass = calc_forwardpass(net, [input], [output])
+    println("Hit b!")
     input_vec = net[input].tensor
     output = net[output].tensor
     mvnormal = MvNormal(Array(Float64, 2), Σ)
@@ -174,7 +176,7 @@ function SimParams(trajdatas::Dict{Int, Trajdata}, segments::Vector{TrajdataSegm
         )
     playback_reactive_scene_buffer = Scene()
 
-    filepath = joinpath(ROOT_FILEPATH,"julia","validation","models","gail_policy.h5")
+    filepath = joinpath(ROOT_FILEPATH,"julia","validation","models","gail_gru.h5")
     iteration = 438
     driver_model = load_gru_driver(filepath, iteration)
 
