@@ -147,7 +147,7 @@ function load_models(; context::IntegratedContinuous = CONTEXT)
                                     ROADLIDAR_NBEAMS, ROADLIDAR_NLANES)
     models["GMR"] = open(io->read(io, GaussianMixtureRegressionDriver, extractor), "GMR.txt", "r")
 
-    filepath = joinpath(ROOT_FILEPATH, "validation",  "models", "gail_gru.h5")
+    filepath = joinpath(ROOT_FILEPATH, "julia", "validation",  "models", "gail_gru.h5")
     iteration = 413
     models["gail_gru"] = Auto2D.load_gru_driver(filepath, iteration)
 

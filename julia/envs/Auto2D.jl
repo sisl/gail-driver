@@ -32,9 +32,7 @@ function GaussianMLPDriver{A <: DriveAction}(::Type{A}, net::ForwardNet, extract
     rec::SceneRecord = SceneRecord(2, context.Δt),
     )
 
-	println("Hit a!")
     pass = calc_forwardpass(net, [input], [output])
-    println("Hit b!")
     input_vec = net[input].tensor
     output = net[output].tensor
     mvnormal = MvNormal(Array(Float64, 2), Σ)
@@ -177,7 +175,7 @@ function SimParams(trajdatas::Dict{Int, Trajdata}, segments::Vector{TrajdataSegm
     playback_reactive_scene_buffer = Scene()
 
     filepath = joinpath(ROOT_FILEPATH,"julia","validation","models","gail_gru.h5")
-    iteration = 438
+    iteration = 413
     driver_model = load_gru_driver(filepath, iteration)
 
     SimParams(
@@ -217,6 +215,7 @@ function gen_simparams(trajdata_indeces::Vector,
     segments = get_train_segments(trajdatas, nsteps)
     toc()
 
+    println("HIT THIS THING")
     SimParams(trajdatas, segments, col_weight, off_weight, rev_weight, jrk_weight, acc_weight, cen_weight, ome_weight,
               use_debug_reward, use_playback_reactive, model_all, playback_reactive_threshold_brake,
               nsimstates, prime_history, nsteps, ego_action_type, extractor)
@@ -364,7 +363,20 @@ Base.show(io::IO, simparams::SimParams) = print(io, "SimParams")
 function restart!(simstate::SimState, simparams::SimParams)
 
     # pick a random segment
-    train_seg_index = rand(1:length(simparams.segments))
+    local train_seg_index
+    for i in 1 : 100
+        train_seg_index = rand(1:length(simparams.segments))
+        seg = simparams.segments[train_seg_index]
+        candidate_frame_lo = seg.frame_lo
+        candidate_frame_hi = seg.frame_hi - simparams.nsteps - simparams.prime_history
+        if candidate_frame_hi > candidate_frame_lo
+        break
+    end
+    if i > 95
+        assert(false)
+        end
+    end
+
     seg = simparams.segments[train_seg_index]
     simstate.egoid = seg.egoid
     simstate.trajdata_index = seg.trajdata_index

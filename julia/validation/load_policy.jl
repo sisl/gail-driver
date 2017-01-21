@@ -1,4 +1,5 @@
 using ForwardNets
+using Auto2D
 
 type Tim2DExtractor <: AbstractFeatureExtractor
     feature_means::Vector{Float64} # for standardization
@@ -82,11 +83,8 @@ function load_gru_driver(
 
     W, b = _pull_W_b(filepath, joinpath(basepath, layers[1]))
 
-    println("Hit 0!")
     net = ForwardNet{Float32}()
-    println("Hit 1!")
     push!(net, Variable(:input, Array(Float32, size(W, 2))))
-    println("Hit 2!")
 
     # hidden layers
     for layer in layers
@@ -150,7 +148,7 @@ function load_gru_driver(
     Σ = Σ.^2
 
     # extactor
-    extractor = joinpath(ROOT_FILEPATH, "validation", "models", "gail_gru.h5")
+    extractor = Tim2DExtractor(joinpath(ROOT_FILEPATH, "julia", "validation", "models", "gail_gru.h5"))
 
     Auto2D.GaussianMLPDriver(action_type, net, extractor, IntegratedContinuous(0.1,1),
                         input = :input, output = :output, Σ = Σ)
