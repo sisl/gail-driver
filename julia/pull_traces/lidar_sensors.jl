@@ -42,7 +42,7 @@ function observe!(lidar::LidarSensor, scene::Scene, roadway::Roadway, vehicle_in
         range_rate = 0.0
         for veh in scene
             if veh.def.id != egoid
-                to_oriented_bounding_box(lidar.poly, veh)
+                to_oriented_bounding_box!(lidar.poly, veh)
 
                 range2 = AutomotiveDrivingModels.get_collision_time(ray, lidar.poly, 1.0)
                 if !isnan(range2) && range2 < range
