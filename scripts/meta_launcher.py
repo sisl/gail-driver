@@ -40,4 +40,5 @@ S = ''.join(S)
 S = S.replace('[',' ')
 S = S.replace(']',' ')
 S = S.replace(',','')
-halt= True
+
+print(S)
