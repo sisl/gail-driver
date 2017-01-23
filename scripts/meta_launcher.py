@@ -18,7 +18,7 @@ for policy_type in ["gru"]:
         for extract_temporal, temporal_noise_thresh in [(0,0)]:
             for max_traj_len in [100]:
                 exp_name = "gru_temp{}_mtl{}".format(extract_temporal,max_traj_len)
-                s= 'python myscripts/gail_drive_test.py --nonlinearity "elu" --gail_batch_size 1024 --reward_type "mlp" '+\
+                s= 'python scripts/train_gail_model.py --nonlinearity "elu" --gail_batch_size 1024 --reward_type "mlp" '+\
                     '--feature_type "mlp" --policy_type {policy_type} --baseline_type "linear" --gru_dim {gru_dim} --normalize_obs 1 ' +\
                     '--decay_rate 1.0 --decay_steps 1 --n_iter 500 --adam_lr 0.00005 --hspec{hspec}' +\
                     '--env_name "Auto2D" --extract_core 1 --extract_well_behaved 1 --extract_temporal {extract_temporal} '+ \
