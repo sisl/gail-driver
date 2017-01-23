@@ -347,7 +347,7 @@ function simulate!(
     if simparams.ego_action_type == LatLonAccel
         set_desired_speed!(model, simstate.scene[veh_index].state.v)
     end
-    AutoDrivers.GaussianMixtureRegressionDrivers.observe!(model, simstate.scene, trajdata.roadway, egoid)
+    observe!(model, simstate.scene, trajdata.roadway, egoid)
 
     # run simulation
     while t < time_end
@@ -363,7 +363,7 @@ function simulate!(
         else
             Auto2D.step(simparams, [ego_action.a_lat, a_lon])
         end
-        AutoDrivers.GaussianMixtureRegressionDrivers.observe!(model, simstate.scene, trajdata.roadway, egoid)
+        observe!(model, simstate.scene, trajdata.roadway, egoid)
 
         # update record
         update!(rec, simstate.scene)
