@@ -15,7 +15,6 @@ from tf_rllab import RLLabRunner
 
 from tf_rllab.algos.trpo import TRPO
 from tf_rllab.algos.gail import GAIL
-#from tf_rllab.envs.base import TfEnv
 
 from tf_rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from tf_rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
@@ -32,7 +31,7 @@ from rllab import config
 
 parser = argparse.ArgumentParser()
 # Logger Params
-parser.add_argument('--exp_name',type=str,default='my_exp')
+parser.add_argument('--exp_name',type=str,default='gail_exp')
 parser.add_argument('--tabular_log_file',type=str,default= 'tab.txt')
 parser.add_argument('--text_log_file',type=str,default= 'tex.txt')
 parser.add_argument('--params_log_file',type=str,default= 'args.txt')
@@ -43,25 +42,19 @@ parser.add_argument('--args_data')
 
 # Environment params
 parser.add_argument('--trajdatas',type=int,nargs='+',default=[1,2,3,4,5,6])
-parser.add_argument('--n_features',type=int,default=45)
 parser.add_argument('--limit_trajs',type=int,default=12000)
 parser.add_argument('--max_traj_len',type=int,default=100)  # max length of a trajectory (ts)
 parser.add_argument('--env_name',type=str,default="Auto2D")
-parser.add_argument('--following_distance',type=int,default=10)
 parser.add_argument('--normalize_obs',type=bool,default= True)
 parser.add_argument('--normalize_act',type=bool,default=False)
 parser.add_argument('--norm_tol',type=float,default=1e-1)
-parser.add_argument('--render',type=bool, default= False)
 
 # Env dict
 parser.add_argument('--use_playback_reactive',type=bool,default=False)
 
-parser.add_argument('--radar_only',type=bool,default= False)
-
 parser.add_argument('--extract_core',type=int,default=1)
 parser.add_argument('--extract_well_behaved',type=int,default=1)
 parser.add_argument('--extract_neighbor_features',type=int,default=0)
-
 parser.add_argument('--extract_carlidar',type=int,default=1)
 parser.add_argument('--extract_roadlidar',type=int,default=0)
 parser.add_argument('--extract_carlidar_rangerate',type=int,default=1)
@@ -71,6 +64,15 @@ parser.add_argument('--roadlidar_nbeams',type=int,default=20)
 
 parser.add_argument('--temporal_noise_thresh',type=int,default=100)
 
+# Reward weights
+parser.add_argument('--col_weight', type=float, default=0.0)
+parser.add_argument('--off_weight', type=float, default=0.0)
+parser.add_argument('--rev_weight', type=float, default=0.0)
+parser.add_argument('--jrk_weight', type=float, default=0.0)
+parser.add_argument('--acc_weight', type=float, default=0.0)
+parser.add_argument('--cen_weight', type=float, default=0.0)
+parser.add_argument('--ome_weight', type=float, default=0.0)
+
 # Model Params
 parser.add_argument('--policy_type',type=str,default='mlp')
 parser.add_argument('--policy_save_name',type=str,default='policy_gail')
@@ -79,37 +81,27 @@ parser.add_argument('--policy_ckpt_itr',type=int,default=1)
 parser.add_argument('--baseline_type',type=str,default='linear')
 parser.add_argument('--load_policy',type=bool,default=False)
 
-parser.add_argument('--include_safety',type=bool,default=False)
-
-parser.add_argument('--hspec',type=int,nargs='+') # specifies architecture of "feature" networks
+parser.add_argument('--hspec',type=int,nargs='+',default=[256,128,64,64,32]) # specifies architecture of "feature" networks
 parser.add_argument('--p_hspec',type=int,nargs='+',default=[]) # policy layers
 parser.add_argument('--b_hspec',type=int,nargs='+',default=[]) # baseline layers
 parser.add_argument('--r_hspec',type=int,nargs='+',default=[]) # reward layers
-parser.add_argument('--cnm_hspec',type=int,nargs='+',default=[128])
 
-parser.add_argument('--gru_dim',type=int,default=64) # hidden dimension of gru
+parser.add_argument('--gru_dim',type=int,default=32) # hidden dimension of gru
 
-parser.add_argument('--nonlinearity',type=str,default='tanh')
-
-parser.add_argument('--init_policy',type=str,default=None)
-parser.add_argument('--include_activation',type=bool,default=False)
+parser.add_argument('--nonlinearity',type=str,default='elu')
 
 # TRPO Params
 parser.add_argument('--trpo_batch_size', type=int, default= 40 * 100)
-
 parser.add_argument('--discount', type=float, default=0.95)
 parser.add_argument('--gae_lambda', type=float, default=0.99)
 parser.add_argument('--n_iter', type=int, default=500)  # trpo iterations
-
 parser.add_argument('--max_kl', type=float, default=0.01)
 parser.add_argument('--vf_max_kl', type=float, default=0.01)
 parser.add_argument('--vf_cg_damping', type=float, default=0.01)
-
 parser.add_argument('--trpo_step_size',type=float,default=0.01)
 
 # GAILS Params
 parser.add_argument('--gail_batch_size', type=int, default= 1024)
-
 parser.add_argument('--adam_steps',type=int,default=1)
 parser.add_argument('--adam_lr', type=float, default=0.00005)
 parser.add_argument('--adam_beta1',type=float,default=0.9)
@@ -117,13 +109,15 @@ parser.add_argument('--adam_beta2',type=float,default=0.99)
 parser.add_argument('--adam_epsilon',type=float,default=1e-8)
 parser.add_argument('--decay_steps',type=int,default=1)
 parser.add_argument('--decay_rate',type=float,default=1.0)
-
-parser.add_argument('--hard_freeze',type=bool,default=False)
+parser.add_argument('--hard_freeze',type=bool,default=False) # freeze learning rate when discriminator reaches threshold
 parser.add_argument('--freeze_upper',type=float,default=1.0)
 parser.add_argument('--freeze_lower',type=float,default=0.5)
-
 parser.add_argument('--policy_ent_reg', type=float, default=0.0)
 parser.add_argument('--env_r_weight',type=float,default=0.0)
+
+# Load ckpt?
+parser.add_argument('--ckpt_name',type=str,default='')
+parser.add_argument('--ckpt_itr',type=int,default=-1)
 
 args = parser.parse_args()
 
@@ -157,7 +151,14 @@ expert_data_path = expert_trajs_path + \
 	int(args.extract_carlidar_rangerate), 100, args.carlidar_nbeams, args.roadlidar_nbeams,2,100,50,456)
 
 env_dict = {'trajdata_indeces': args.trajdatas,
-	'nsteps': args.max_traj_len,
+			'col_weight': args.col_weight,
+			'off_weight': args.off_weight,
+			'rev_weight': args.rev_weight,
+			'jrk_weight': args.jrk_weight,
+			'acc_weight': args.acc_weight,
+			'cen_weight': args.cen_weight,
+			'ome_weight': args.ome_weight,
+			'nsteps': args.max_traj_len,
 			'use_playback_reactive': args.use_playback_reactive,
 			'extract_core':bool(args.extract_core),
 			'extract_temporal':False,
@@ -168,8 +169,7 @@ env_dict = {'trajdata_indeces': args.trajdatas,
 			'roadlidar_nbeams':args.roadlidar_nbeams,
 			'roadlidar_nlanes':2,
 			'carlidar_max_range':100.,
-			'roadlidar_max_range':100.,
-			'include_safety':args.include_safety}
+			'roadlidar_max_range':100.}
 
 if not args.extract_carlidar:
 	env_dict['carlidar_nbeams'] = 0
@@ -255,7 +255,6 @@ elif args.policy_type == 'gru':
                               feature_network=feat_mlp,
                               state_include_action=False)
 
-
 else:
     raise NotImplementedError
 
@@ -278,19 +277,9 @@ else:
     raise NotImplementedError
 
 # create adversary
-if args.include_safety:
-    act_dim = env.action_dim - 1
-else:
-    act_dim = env.action_dim
-
 reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity, tf.nn.sigmoid,
-				   input_shape= (np.prod(env.spec.observation_space.shape) + act_dim,)
+				   input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
 				   )
-
-if args.init_policy is not None:
-	load_param_args = [args.init_policy, -1,['gru_policy/mean_network/gru/h0:0']]
-else:
-	load_param_args = None
 
 algo = GAIL(
 	env=env,
@@ -314,8 +303,7 @@ algo = GAIL(
 	freeze_upper = args.freeze_upper,
 	freeze_lower = args.freeze_lower,
 	fo_optimizer_cls=tf.train.AdamOptimizer,
-	load_params_args = load_param_args,
-	include_safety = args.include_safety,
+	load_params_args = None,
 	temporal_indices = temporal_indices,
 	temporal_noise_thresh = args.temporal_noise_thresh,
 	fo_optimizer_args= dict(learning_rate = args.adam_lr,
@@ -324,6 +312,12 @@ algo = GAIL(
 							epsilon= args.adam_epsilon),
 	optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
 )
+
+# Load checkpoint if desired
+if len(args.ckpt_name) > 0:
+	policy.load_params(args.ckpt_name, args.ckpt_itr, [])
+	baseline.load_params(args.ckpt_name, args.ckpt_itr, [])
+	reward.load_params(args.ckpt_name, args.ckpt_itr, [])
 
 # use date and time to create new logging directory for each run
 date= calendar.datetime.date.today().strftime('%y-%m-%d')

@@ -32,7 +32,6 @@ class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
             mean_network=None,
             std_network=None,
             std_parametrization='exp',
-            include_safety = False,
             batch_normalization= False
     ):
         """

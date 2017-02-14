@@ -163,7 +163,7 @@ class GAIL(TRPO):
 
             if rewards.ndim == 0:
                 rewards = rewards[np.newaxis]
-            path['rewards'] = rewards
+            path['rewards'] += rewards
 
             path_lengths.append(X.shape[0])
 
