@@ -109,7 +109,6 @@ parser.add_argument('--adam_epsilon',type=float,default=1e-8)
 parser.add_argument('--decay_steps',type=int,default=1)
 parser.add_argument('--decay_rate',type=float,default=1.0)
 parser.add_argument('--hard_freeze',type=bool,default=False) # freeze learning rate when discriminator reaches threshold
-parser.add_argument('--hard_freeze',type=bool,default=False) # freeze learning rate when discriminator reaches threshold
 parser.add_argument('--freeze_upper',type=float,default=1.0)
 parser.add_argument('--freeze_lower',type=float,default=0.5)
 parser.add_argument('--policy_ent_reg', type=float, default=0.0)
