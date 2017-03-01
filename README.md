@@ -13,6 +13,7 @@ An ego vehicle trained through Generative Adversarial Imitation Learning (blue) 
 
 # Requirements
 [AutomotiveDrivingModels.jl](https://github.com/tawheeler/AutomotiveDrivingModels.jl)
+
 ForwardNets.jl ([nextgen branch](https://github.com/tawheeler/ForwardNets.jl/tree/nextgen))
 
 # References
