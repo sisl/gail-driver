@@ -37,6 +37,7 @@ class GAIL(TRPO):
             freeze_lower = 0.5,
             temporal_indices=None,
 			temporal_noise_thresh=100,
+	        wgan = False,
             **kwargs):
 		kwargs['temporal_noise_thresh'] = temporal_noise_thresh
 		super(GAIL, self).__init__(optimizer=optimizer, optimizer_args=optimizer_args, **kwargs)
@@ -46,6 +47,8 @@ class GAIL(TRPO):
 
 		self.act_mean = act_mean
 		self.act_std = act_std
+				
+		self.wgan = wgan
 
 		self.temporal_indices = temporal_indices
 		self.temporal_noise_thresh = temporal_noise_thresh
@@ -121,15 +124,17 @@ class GAIL(TRPO):
 
 		assert Bpi == Bex
 
-		labels= np.concatenate((np.zeros(Bpi), np.ones(Bex)))[...,None] # 0s for policy, 1s for expert
-
+		if self.wgan:
+			labels= np.concatenate((np.ones(Bpi), -np.ones(Bex)))[...,None] # 1s for policy, (-1)s for expert
+		else:
+			labels= np.concatenate((np.zeros(Bpi), np.ones(Bex)))[...,None] # 0s for policy, 1s for expert
+		
 		self.solver.train(trans_B_Do, labels, self.working_lr)
 		scores = self.reward_model.compute_score(trans_B_Do)
 
-		accuracy = ((scores < 0) == (labels == 0)).mean()
 		accuracy_for_currpolicy = (scores[:Bpi] <= 0).mean()
 		accuracy_for_expert = (scores[Bpi:] > 0).mean()
-		assert np.allclose(accuracy, .5*(accuracy_for_currpolicy + accuracy_for_expert))
+		accuracy = .5*(accuracy_for_currpolicy + accuracy_for_expert)
 
 		if self.hard_freeze:
 			if accuracy >= self.freeze_upper:

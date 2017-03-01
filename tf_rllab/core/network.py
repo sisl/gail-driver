@@ -239,6 +239,36 @@ class RewardMLP(MLP):
         loss = self.likelihood_loss()
         return loss
 
+class WassersteinMLP(MLP):
+    """
+    overrides MLP with methods / properties used in generative adversarial learning
+    using Wasserstein loss.
+    """
+
+    def compute_reward(self, X):
+        assert self.output_nonlinearity is None
+        predits = self.output
+        Y_p = self._predict(predits, X)
+        return Y_p
+
+    def compute_score(self, X):
+        """
+        predict logits ...
+        """
+        logits = self.output
+        Y_p = self._predict(logits, X)
+        return Y_p
+
+    def likelihood_loss(self):
+        return tf.reduce_sum(self.output * self.target_var)
+
+    def complexity_loss(self, reg, cmx):
+        return tf.constant(0.0)
+
+    def loss(self, reg= 0.0, cmx= 0.0):
+        loss = self.likelihood_loss()
+        return loss
+
 
 class BaselineMLP(MLP, Baseline):
     def initialize_optimizer(self):

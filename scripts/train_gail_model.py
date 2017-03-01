@@ -19,7 +19,7 @@ from tf_rllab.algos.gail import GAIL
 from tf_rllab.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from tf_rllab.policies.gaussian_gru_policy import GaussianGRUPolicy
 
-from tf_rllab.core.network import MLP, RewardMLP, BaselineMLP
+from tf_rllab.core.network import MLP, RewardMLP, WassersteinMLP, BaselineMLP
 from tf_rllab.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer, FiniteDifferenceHvp
 
 import tensorflow as tf
@@ -75,6 +75,7 @@ parser.add_argument('--ome_weight', type=float, default=0.0)
 
 # Model Params
 parser.add_argument('--policy_type',type=str,default='mlp')
+parser.add_argument('--reward_type',type=str,default='mlp')
 parser.add_argument('--policy_save_name',type=str,default='policy_gail')
 parser.add_argument('--policy_ckpt_name',type=str,default=None)
 parser.add_argument('--policy_ckpt_itr',type=int,default=1)
@@ -276,9 +277,24 @@ else:
     raise NotImplementedError
 
 # create adversary
-reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity, tf.nn.sigmoid,
-				   input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
-				   )
+if args.reward_type == 'wgan':
+	assert args.adam_steps > 1
+	reward = WassersteinMLP('mlp_reward', 1, r_hspec, nonlinearity, None,
+			           input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
+			           )
+	fo_optimizer_cls = tf.train.RMSPropOptimizer
+	fo_optimizer_args = dict(learning_rate = args.adam_lr)
+elif args.reward_type == 'mlp':
+	reward = RewardMLP('mlp_reward', 1, r_hspec, nonlinearity, tf.nn.sigmoid,
+			           input_shape= (np.prod(env.spec.observation_space.shape) + env.action_dim,)
+			           )	
+	fo_optimizer_cls = tf.train.AdamOptimizer
+	fo_optimizer_args = dict(learning_rate = args.adam_lr,
+							beta1 = args.adam_beta1,
+							beta2 = args.adam_beta2,
+							epsilon= args.adam_epsilon)
+else:
+	raise NotImplementedError
 
 algo = GAIL(
 	env=env,
@@ -301,14 +317,12 @@ algo = GAIL(
 	act_std= initial_act_std,
 	freeze_upper = args.freeze_upper,
 	freeze_lower = args.freeze_lower,
-	fo_optimizer_cls=tf.train.AdamOptimizer,
+	fo_optimizer_cls=fo_optimizer_cls,
 	load_params_args = None,
 	temporal_indices = temporal_indices,
 	temporal_noise_thresh = args.temporal_noise_thresh,
-	fo_optimizer_args= dict(learning_rate = args.adam_lr,
-							beta1 = args.adam_beta1,
-							beta2 = args.adam_beta2,
-							epsilon= args.adam_epsilon),
+	fo_optimizer_args= fo_optimizer_args,
+    wgan = args.reward_type == 'wgan',
 	optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
 )
 
