@@ -11,6 +11,10 @@ python scripts/train_gail_model.py
 ![](https://github.com/sisl/gail-driver/blob/master/gifs/congested.gif?raw=true)
 An ego vehicle trained through Generative Adversarial Imitation Learning (blue) navigating a congested highway scene.
 
+# Requirements
+[AutomotiveDrivingModels.jl](https://github.com/tawheeler/AutomotiveDrivingModels.jl)
+ForwardNets.jl ([nextgen branch](https://github.com/tawheeler/ForwardNets.jl/tree/nextgen))
+
 # References
 Jonathan Ho, Stefano Ermon. "[Generative Adversarial Imitation Learning](https://cs.stanford.edu/~ermon/papers/imitation_nips2016_main.pdf)". _Advances in Neural Information Processing Systems (NIPS), 2016_
 
