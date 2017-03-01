@@ -26,13 +26,9 @@ class BatchSampler(BaseSampler):
 
     def obtain_samples(self, itr):
         cur_policy_params = self.algo.policy.get_param_values()
-        if hasattr(self.algo.env,"get_param_values"):
-            cur_env_params = self.algo.env.get_param_values()
-        else:
-            cur_env_params = None
         paths = parallel_sampler.sample_paths(
             policy_params=cur_policy_params,
-            env_params=cur_env_params,
+            env_params=None,
             max_samples=self.algo.batch_size,
             max_path_length=self.algo.max_path_length,
             scope=self.algo.scope,
