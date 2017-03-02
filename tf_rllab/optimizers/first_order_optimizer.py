@@ -263,5 +263,7 @@ class SimpleSolver(object):
                 sess.run([self.opt],{self.model.input_var:X_batch,
                                      self.model.target_var:Y_batch,
                                      self.learning_rate:lr})
+                if self.model.clip_ops != []:
+                    sess.run(self.model.clip_ops)
 
 

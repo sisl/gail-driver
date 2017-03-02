@@ -145,7 +145,6 @@ class MLP(LayersPowered, Serializable, DeterministicNetwork):
                  output_W_init=L.XavierUniformInitializer(), output_b_init=tf.zeros_initializer, batch_size=None,
                  input_var=None, input_layer=None, input_shape=None, batch_normalization=False, weight_normalization=False,
                  ):
-
         Serializable.quick_init(self, locals())
         self.name= name
 
@@ -238,6 +237,10 @@ class RewardMLP(MLP):
         #return tf.reduce_sum(loss)
         loss = self.likelihood_loss()
         return loss
+    
+    @property
+    def clip_ops(self):
+        return []
 
 class WassersteinMLP(MLP):
     """
@@ -268,6 +271,11 @@ class WassersteinMLP(MLP):
     def loss(self, reg= 0.0, cmx= 0.0):
         loss = self.likelihood_loss()
         return loss
+    
+    @property
+    def clip_ops(self):
+        ops = [var.assign(tf.clip_by_value(var, -0.01, 0.01)) for var in self.get_params()]
+        return ops
 
 
 class BaselineMLP(MLP, Baseline):
