@@ -37,3 +37,4 @@ blackbox
 rllab/config_personal.py
 *.swp
 sandbox
+julia/validation/RootDir.jl
