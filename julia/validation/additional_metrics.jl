@@ -278,7 +278,7 @@ function rollout!(
     for i in 1 : prime_history
         t = time_start - Δt * (prime_history - i + 1)
         update!(simstate.rec, get!(simstate.scene, trajdata, t))
-        observe!(model, simparams, simstate.scene, trajdata.roadway, simstate.egoid)
+        AutomotiveDrivingModels.observe!(model, simparams, simstate.scene, trajdata.roadway, simstate.egoid)
     end
 
     # empty playback reactive
@@ -288,7 +288,7 @@ function rollout!(
     t = time_start
     update!(simstate.rec, get!(simstate.scene, trajdata, t))
     update!(model.rec, simstate.scene)
-    observe!(model, simparams, simstate.scene, trajdata.roadway, simstate.egoid)
+    AutomotiveDrivingModels.observe!(model, simparams, simstate.scene, trajdata.roadway, simstate.egoid)
 
     # run simulation
     while t < time_end
@@ -301,7 +301,7 @@ function rollout!(
         Auto2D.step(simparams, [a, ω])
 
         # update record
-        observe!(model, simparams, simstate.scene, trajdata.roadway, simstate.egoid)
+        AutomotiveDrivingModels.observe!(model, simparams, simstate.scene, trajdata.roadway, simstate.egoid)
         update!(rec, simstate.scene)
 
         # update time
@@ -332,7 +332,7 @@ function simulate!(
     for i in 1 : prime_history
         t = time_start - Δt * (prime_history - i + 1)
         update!(simstate.rec, get!(simstate.scene, trajdata, t))
-        Auto2D.observe!(model, simstate.scene, trajdata.roadway, egoid)
+        AutomotiveDrivingModels.observe!(model, simstate.scene, trajdata.roadway, egoid)
     end
 
     # empty playback reactive
@@ -347,7 +347,7 @@ function simulate!(
     if simparams.ego_action_type == LatLonAccel
         set_desired_speed!(model, simstate.scene[veh_index].state.v)
     end
-    observe!(model, simstate.scene, trajdata.roadway, egoid)
+    AutomotiveDrivingModels.observe!(model, simstate.scene, trajdata.roadway, egoid)
 
     # run simulation
     while t < time_end
@@ -363,7 +363,7 @@ function simulate!(
         else
             Auto2D.step(simparams, [ego_action.a_lat, a_lon])
         end
-        observe!(model, simstate.scene, trajdata.roadway, egoid)
+        AutomotiveDrivingModels.observe!(model, simstate.scene, trajdata.roadway, egoid)
 
         # update record
         update!(rec, simstate.scene)
