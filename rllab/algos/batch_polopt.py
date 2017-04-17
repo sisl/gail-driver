@@ -14,7 +14,8 @@ class BatchSampler(BaseSampler):
         self.algo = algo
 
     def start_worker(self):
-        parallel_sampler.populate_task(self.algo.env, self.algo.policy, scope=self.algo.scope)
+        parallel_sampler.populate_task(
+            self.algo.env, self.algo.policy, scope=self.algo.scope)
 
     def shutdown_worker(self):
         parallel_sampler.terminate_task(scope=self.algo.scope)
@@ -30,7 +31,8 @@ class BatchSampler(BaseSampler):
         if self.algo.whole_paths:
             return paths
         else:
-            paths_truncated = parallel_sampler.truncate_paths(paths, self.algo.batch_size)
+            paths_truncated = parallel_sampler.truncate_paths(
+                paths, self.algo.batch_size)
             return paths_truncated
 
 
@@ -134,7 +136,7 @@ class BatchPolopt(RLAlgorithm):
                     self.update_plot()
                     if self.pause_for_plot:
                         input("Plotting evaluation run: Press Enter to "
-                                  "continue...")
+                              "continue...")
 
         self.shutdown_worker()
 

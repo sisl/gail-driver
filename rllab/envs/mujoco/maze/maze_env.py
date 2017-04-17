@@ -15,7 +15,6 @@ from rllab.misc.overrides import overrides
 from rllab.envs.mujoco.maze.maze_env_utils import ray_segment_intersect, point_distance
 
 
-
 class MazeEnv(ProxyEnv, Serializable):
     MODEL_CLASS = None
     ORI_IND = None
@@ -151,10 +150,12 @@ class MazeEnv(ProxyEnv, Serializable):
         goal_readings = np.zeros(self._n_bins)
 
         for ray_idx in range(self._n_bins):
-            ray_ori = ori - self._sensor_span * 0.5 + 1.0 * (2 * ray_idx + 1) / (2 * self._n_bins) * self._sensor_span
+            ray_ori = ori - self._sensor_span * 0.5 + 1.0 * \
+                (2 * ray_idx + 1) / (2 * self._n_bins) * self._sensor_span
             ray_segments = []
             for seg in segments:
-                p = ray_segment_intersect(ray=((robot_x, robot_y), ray_ori), segment=seg["segment"])
+                p = ray_segment_intersect(
+                    ray=((robot_x, robot_y), ray_ori), segment=seg["segment"])
                 if p is not None:
                     ray_segments.append(dict(
                         segment=seg["segment"],
@@ -163,16 +164,19 @@ class MazeEnv(ProxyEnv, Serializable):
                         distance=point_distance(p, (robot_x, robot_y)),
                     ))
             if len(ray_segments) > 0:
-                first_seg = sorted(ray_segments, key=lambda x: x["distance"])[0]
+                first_seg = sorted(
+                    ray_segments, key=lambda x: x["distance"])[0]
                 # print first_seg
                 if first_seg["type"] == 1:
                     # Wall -> add to wall readings
                     if first_seg["distance"] <= self._sensor_range:
-                        wall_readings[ray_idx] = (self._sensor_range - first_seg["distance"]) / self._sensor_range
+                        wall_readings[ray_idx] = (
+                            self._sensor_range - first_seg["distance"]) / self._sensor_range
                 elif first_seg["type"] == 'g':
                     # Goal -> add to goal readings
                     if first_seg["distance"] <= self._sensor_range:
-                        goal_readings[ray_idx] = (self._sensor_range - first_seg["distance"]) / self._sensor_range
+                        goal_readings[ray_idx] = (
+                            self._sensor_range - first_seg["distance"]) / self._sensor_range
                 else:
                     assert False
 
@@ -254,7 +258,7 @@ class MazeEnv(ProxyEnv, Serializable):
         reward = 0
         minx, maxx, miny, maxy = self._goal_range
         # print "goal range: x [%s,%s], y [%s,%s], now [%s,%s]" % (str(minx), str(maxx), str(miny), str(maxy),
-        #                                                          str(x), str(y))
+        # str(x), str(y))
         if minx <= x <= maxx and miny <= y <= maxy:
             done = True
             reward = 1

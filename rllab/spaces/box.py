@@ -63,7 +63,7 @@ class Box(Space):
 
     def __eq__(self, other):
         return isinstance(other, Box) and np.allclose(self.low, other.low) and \
-               np.allclose(self.high, other.high)
+            np.allclose(self.high, other.high)
 
     def __hash__(self):
         return hash((self.low, self.high))
@@ -71,7 +71,6 @@ class Box(Space):
     def new_tensor_variable(self, name, extra_dims):
         return ext.new_tensor(
             name=name,
-            ndim=extra_dims+1,
+            ndim=extra_dims + 1,
             dtype=theano.config.floatX
         )
-

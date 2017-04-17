@@ -15,12 +15,14 @@ def cg(f_Ax, b, cg_iters=10, callback=None, verbose=False, residual_tol=1e-10):
 
     fmtstr = "%10i %10.3g %10.3g"
     titlestr = "%10s %10s %10s"
-    if verbose: print(titlestr % ("iter", "residual norm", "soln norm"))
+    if verbose:
+        print(titlestr % ("iter", "residual norm", "soln norm"))
 
     for i in range(cg_iters):
         if callback is not None:
             callback(x)
-        if verbose: print(fmtstr % (i, rdotr, np.linalg.norm(x)))
+        if verbose:
+            print(fmtstr % (i, rdotr, np.linalg.norm(x)))
         z = f_Ax(p)
         v = rdotr / p.dot(z)
         x += v * p
@@ -35,7 +37,8 @@ def cg(f_Ax, b, cg_iters=10, callback=None, verbose=False, residual_tol=1e-10):
 
     if callback is not None:
         callback(x)
-    if verbose: print(fmtstr % (i + 1, rdotr, np.linalg.norm(x)))  # pylint: disable=W0631
+    if verbose:
+        print(fmtstr % (i + 1, rdotr, np.linalg.norm(x)))  # pylint: disable=W0631
     return x
 
 
@@ -51,12 +54,14 @@ def preconditioned_cg(f_Ax, f_Minvx, b, cg_iters=10, callback=None, verbose=Fals
 
     fmtstr = "%10i %10.3g %10.3g"
     titlestr = "%10s %10s %10s"
-    if verbose: print(titlestr % ("iter", "residual norm", "soln norm"))
+    if verbose:
+        print(titlestr % ("iter", "residual norm", "soln norm"))
 
     for i in range(cg_iters):
         if callback is not None:
             callback(x, f_Ax)
-        if verbose: print(fmtstr % (i, ydotr, np.linalg.norm(x)))
+        if verbose:
+            print(fmtstr % (i, ydotr, np.linalg.norm(x)))
         z = f_Ax(p)
         v = ydotr / p.dot(z)
         x += v * p
@@ -71,7 +76,8 @@ def preconditioned_cg(f_Ax, f_Minvx, b, cg_iters=10, callback=None, verbose=Fals
         if ydotr < residual_tol:
             break
 
-    if verbose: print(fmtstr % (cg_iters, ydotr, np.linalg.norm(x)))
+    if verbose:
+        print(fmtstr % (cg_iters, ydotr, np.linalg.norm(x)))
 
     return x
 
@@ -80,7 +86,8 @@ def test_cg():
     A = np.random.randn(5, 5)
     A = A.T.dot(A)
     b = np.random.randn(5)
-    x = cg(lambda x: A.dot(x), b, cg_iters=5, verbose=True)  # pylint: disable=W0108
+    x = cg(lambda x: A.dot(x), b, cg_iters=5,
+           verbose=True)  # pylint: disable=W0108
     assert np.allclose(A.dot(x), b)
 
     x = preconditioned_cg(lambda x: A.dot(x), lambda x: np.linalg.solve(A, x), b, cg_iters=5,
@@ -158,7 +165,8 @@ def lanczos2(f_Ax, b, k, residual_thresh=1e-9):
 
         beta = np.linalg.norm(z)
         if beta < residual_thresh:
-            print("lanczos2: stopping early after %i/%i dimensions residual %f < %f" % (j + 1, k, beta, residual_thresh))
+            print("lanczos2: stopping early after %i/%i dimensions residual %f < %f" %
+                  (j + 1, k, beta, residual_thresh))
             break
         else:
             q = z / beta
@@ -187,7 +195,8 @@ def test_lanczos():
     A = np.random.randn(5, 5)
     A = A.T.dot(A)
     b = np.random.randn(5)
-    f_Ax = lambda x: A.dot(x)  # pylint: disable=W0108
+
+    def f_Ax(x): return A.dot(x)  # pylint: disable=W0108
     Q, alphas, betas = lanczos(f_Ax, b, 10)
     H = make_tridiagonal(alphas, betas)
     assert np.allclose(Q.T.dot(A).dot(Q), H)

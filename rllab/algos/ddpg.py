@@ -57,7 +57,8 @@ class SimpleReplayPool(object):
         transition_indices = np.zeros(batch_size, dtype='uint64')
         count = 0
         while count < batch_size:
-            index = np.random.randint(self._bottom, self._bottom + self._size) % self._max_pool_size
+            index = np.random.randint(
+                self._bottom, self._bottom + self._size) % self._max_pool_size
             # make sure that the transition is valid: if we are at the end of the pool, we need to discard
             # this sample
             if index == self._size - 1 and self._size <= self._max_pool_size:
@@ -224,7 +225,8 @@ class DDPG(RLAlgorithm):
                     self.es_path_returns.append(path_return)
                     path_length = 0
                     path_return = 0
-                action = self.es.get_action(itr, observation, policy=sample_policy)  # qf=qf)
+                action = self.es.get_action(
+                    itr, observation, policy=sample_policy)  # qf=qf)
 
                 next_observation, reward, terminal, _ = self.env.step(action)
                 path_length += 1
@@ -232,11 +234,14 @@ class DDPG(RLAlgorithm):
 
                 if not terminal and path_length >= self.max_path_length:
                     terminal = True
-                    # only include the terminal transition in this case if the flag was set
+                    # only include the terminal transition in this case if the
+                    # flag was set
                     if self.include_horizon_terminal_transitions:
-                        pool.add_sample(observation, action, reward * self.scale_reward, terminal)
+                        pool.add_sample(observation, action,
+                                        reward * self.scale_reward, terminal)
                 else:
-                    pool.add_sample(observation, action, reward * self.scale_reward, terminal)
+                    pool.add_sample(observation, action,
+                                    reward * self.scale_reward, terminal)
 
                 observation = next_observation
 
@@ -245,7 +250,8 @@ class DDPG(RLAlgorithm):
                         # Train policy
                         batch = pool.random_batch(self.batch_size)
                         self.do_training(itr, batch)
-                    sample_policy.set_param_values(self.policy.get_param_values())
+                    sample_policy.set_param_values(
+                        self.policy.get_param_values())
 
                 itr += 1
 
@@ -260,7 +266,7 @@ class DDPG(RLAlgorithm):
                 self.update_plot()
                 if self.pause_for_plot:
                     input("Plotting evaluation run: Press Enter to "
-                              "continue...")
+                          "continue...")
         self.env.terminate()
         self.policy.terminate()
 
@@ -285,8 +291,8 @@ class DDPG(RLAlgorithm):
         yvar = TT.vector('ys')
 
         qf_weight_decay_term = 0.5 * self.qf_weight_decay * \
-                               sum([TT.sum(TT.square(param)) for param in
-                                    self.qf.get_params(regularizable=True)])
+            sum([TT.sum(TT.square(param)) for param in
+                 self.qf.get_params(regularizable=True)])
 
         qval = self.qf.get_qval_sym(obs, action)
 
@@ -294,8 +300,8 @@ class DDPG(RLAlgorithm):
         qf_reg_loss = qf_loss + qf_weight_decay_term
 
         policy_weight_decay_term = 0.5 * self.policy_weight_decay * \
-                                   sum([TT.sum(TT.square(param))
-                                        for param in self.policy.get_params(regularizable=True)])
+            sum([TT.sum(TT.square(param))
+                 for param in self.policy.get_params(regularizable=True)])
         policy_qval = self.qf.get_qval_sym(
             obs, self.policy.get_action_sym(obs),
             deterministic=True
@@ -373,7 +379,8 @@ class DDPG(RLAlgorithm):
         )
 
         average_discounted_return = np.mean(
-            [special.discount_return(path["rewards"], self.discount) for path in paths]
+            [special.discount_return(path["rewards"], self.discount)
+             for path in paths]
         )
 
         returns = [sum(path["rewards"]) for path in paths]

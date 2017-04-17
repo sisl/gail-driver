@@ -37,7 +37,8 @@ class Categorical(Distribution):
         new_prob_var = new_dist_info_vars["prob"]
         # Assume layout is N * A
         return TT.sum(
-            old_prob_var * (TT.log(old_prob_var + TINY) - TT.log(new_prob_var + TINY)),
+            old_prob_var * (TT.log(old_prob_var + TINY) -
+                            TT.log(new_prob_var + TINY)),
             axis=-1
         )
 

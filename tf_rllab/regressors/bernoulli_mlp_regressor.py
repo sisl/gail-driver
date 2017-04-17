@@ -1,6 +1,5 @@
 
 
-
 import tf_rllab.core.layers as L
 import numpy as np
 import tensorflow as tf
@@ -71,15 +70,20 @@ class BernoulliMLPRegressor(LayersPowered, Serializable):
             LayersPowered.__init__(self, [l_p])
 
             xs_var = p_network.input_layer.input_var
-            ys_var = tf.placeholder(dtype=tf.float32, shape=(None, output_dim), name="ys")
-            old_p_var = tf.placeholder(dtype=tf.float32, shape=(None, output_dim), name="old_p")
+            ys_var = tf.placeholder(
+                dtype=tf.float32, shape=(None, output_dim), name="ys")
+            old_p_var = tf.placeholder(
+                dtype=tf.float32, shape=(None, output_dim), name="old_p")
 
-            x_mean_var = tf.get_variable(name="x_mean", initializer=tf.zeros_initializer, shape=(1,) + input_shape)
-            x_std_var = tf.get_variable(name="x_std", initializer=tf.ones_initializer, shape=(1,) + input_shape)
+            x_mean_var = tf.get_variable(
+                name="x_mean", initializer=tf.zeros_initializer, shape=(1,) + input_shape)
+            x_std_var = tf.get_variable(
+                name="x_std", initializer=tf.ones_initializer, shape=(1,) + input_shape)
 
             normalized_xs_var = (xs_var - x_mean_var) / x_std_var
 
-            p_var = L.get_output(l_p, {p_network.input_layer: normalized_xs_var})
+            p_var = L.get_output(
+                l_p, {p_network.input_layer: normalized_xs_var})
 
             old_info_vars = dict(p=old_p_var)
             info_vars = dict(p=p_var)
@@ -96,7 +100,8 @@ class BernoulliMLPRegressor(LayersPowered, Serializable):
             self.f_p = tensor_utils.compile_function([xs_var], p_var)
             self.l_p = l_p
 
-            self.optimizer.update_opt(loss=loss, target=self, network_outputs=[p_var], inputs=[xs_var, ys_var])
+            self.optimizer.update_opt(loss=loss, target=self, network_outputs=[
+                                      p_var], inputs=[xs_var, ys_var])
             self.tr_optimizer.update_opt(loss=loss, target=self, network_outputs=[p_var],
                                          inputs=[xs_var, ys_var, old_p_var],
                                          leq_constraint=(mean_kl, step_size)

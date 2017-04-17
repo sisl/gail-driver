@@ -1,5 +1,6 @@
 import theano.tensor as TT
 
+
 class Distribution(object):
 
     @property

@@ -87,7 +87,8 @@ class GridWorldEnv(Env, Serializable):
         :param action: should be a one-hot vector encoding the action
         :return:
         """
-        possible_next_states = self.get_possible_next_states(self.state, action)
+        possible_next_states = self.get_possible_next_states(
+            self.state, action)
 
         probs = [x[1] for x in possible_next_states]
         next_state_idx = np.random.choice(len(probs), p=probs)
@@ -147,4 +148,3 @@ class GridWorldEnv(Env, Serializable):
     @property
     def observation_space(self):
         return Discrete(self.n_row * self.n_col)
-

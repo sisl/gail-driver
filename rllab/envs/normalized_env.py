@@ -21,7 +21,7 @@ class NormalizedEnv(ProxyEnv, Serializable):
             reward_alpha=0.001,
             initial_obs_mean=None,
             initial_obs_var=None,
-	    noise_indices=None
+            noise_indices=None
     ):
         ProxyEnv.__init__(self, env)
         Serializable.quick_init(self, locals())
@@ -35,7 +35,7 @@ class NormalizedEnv(ProxyEnv, Serializable):
         self._reward_mean = 0.
         self._reward_var = 1.
 
-	self._noise_indices = noise_indices
+        self._noise_indices = noise_indices
 
         if initial_obs_mean is None:
             self._obs_mean = np.zeros(env.observation_space.flat_dim)
@@ -48,21 +48,26 @@ class NormalizedEnv(ProxyEnv, Serializable):
 
     def _update_obs_estimate(self, obs):
         flat_obs = self.wrapped_env.observation_space.flatten(obs)
-        self._obs_mean = (1 - self._obs_alpha) * self._obs_mean + self._obs_alpha * flat_obs
-        self._obs_var = (1 - self._obs_alpha) * self._obs_var + self._obs_alpha * np.square(flat_obs - self._obs_mean)
+        self._obs_mean = (1 - self._obs_alpha) * \
+            self._obs_mean + self._obs_alpha * flat_obs
+        self._obs_var = (1 - self._obs_alpha) * self._obs_var + \
+            self._obs_alpha * np.square(flat_obs - self._obs_mean)
 
     def _update_reward_estimate(self, reward):
-        self._reward_mean = (1 - self._reward_alpha) * self._reward_mean + self._reward_alpha * reward
+        self._reward_mean = (1 - self._reward_alpha) * \
+            self._reward_mean + self._reward_alpha * reward
         self._reward_var = (1 - self._reward_alpha) * self._reward_var + self._reward_alpha * np.square(reward -
                                                                                                         self._reward_mean)
+
     def _apply_normalize_obs(self, obs):
         if self._running_obs:
             self._update_obs_estimate(obs)
         return (obs - self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
 
     def _apply_noise_obs(self, obs):
-	obs[self._noise_indices] = np.random.normal(0,1,obs[self._noise_indices].shape)
-	return obs
+        obs[self._noise_indices] = np.random.normal(
+            0, 1, obs[self._noise_indices].shape)
+        return obs
 
     def _apply_normalize_reward(self, reward):
         if self._running_reward:
@@ -108,8 +113,8 @@ class NormalizedEnv(ProxyEnv, Serializable):
         next_obs, reward, done, info = wrapped_step
         if self._normalize_obs:
             next_obs = self._apply_normalize_obs(next_obs)
-	if self._noise_indices is not None:
-	    next_obs = self._apply_noise_obs(next_obs)
+        if self._noise_indices is not None:
+            next_obs = self._apply_noise_obs(next_obs)
         if self._normalize_reward:
             reward = self._apply_normalize_reward(reward)
         return Step(next_obs, reward * self._scale_reward, done, **info)
@@ -122,5 +127,6 @@ class NormalizedEnv(ProxyEnv, Serializable):
     #     print "Obs std:", np.sqrt(self._obs_var)
     #     print "Reward mean:", self._reward_mean
     #     print "Reward std:", np.sqrt(self._reward_var)
+
 
 normalize = NormalizedEnv

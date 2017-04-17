@@ -86,7 +86,8 @@ class CEM(RLAlgorithm, Serializable):
         for itr in range(self.n_itr):
             # sample around the current distribution
             extra_var_mult = max(1.0 - itr / self.extra_decay_time, 0)
-            sample_std = np.sqrt(np.square(cur_std) + np.square(self.extra_std) * extra_var_mult)
+            sample_std = np.sqrt(np.square(cur_std) +
+                                 np.square(self.extra_std) * extra_var_mult)
             if self.batch_size is None:
                 criterion = 'paths'
                 threshold = self.n_samples
@@ -97,10 +98,10 @@ class CEM(RLAlgorithm, Serializable):
                 _worker_rollout_policy,
                 threshold=threshold,
                 args=(dict(cur_mean=cur_mean,
-                          sample_std=sample_std,
-                          max_path_length=self.max_path_length,
-                          discount=self.discount,
-                          criterion=criterion),)
+                           sample_std=sample_std,
+                           max_path_length=self.max_path_length,
+                           discount=self.discount,
+                           criterion=criterion),)
             )
             xs = np.asarray([info[0] for info in infos])
             paths = [info[1] for info in infos]
@@ -115,7 +116,8 @@ class CEM(RLAlgorithm, Serializable):
             logger.push_prefix('itr #%d | ' % itr)
             logger.record_tabular('Iteration', itr)
             logger.record_tabular('CurStdMean', np.mean(cur_std))
-            undiscounted_returns = np.array([path['undiscounted_return'] for path in paths])
+            undiscounted_returns = np.array(
+                [path['undiscounted_return'] for path in paths])
             logger.record_tabular('AverageReturn',
                                   np.mean(undiscounted_returns))
             logger.record_tabular('StdReturn',

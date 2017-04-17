@@ -18,4 +18,3 @@ class UniformControlPolicy(Policy, Serializable):
 
     def get_params_internal(self, **tags):
         return []
-

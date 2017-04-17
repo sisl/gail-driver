@@ -92,11 +92,11 @@ class ReplayPool(Serializable):
     def __setstate__(self, d):
         super(ReplayPool, self).__setstate__(d)
         self.bottom, self.top, self.size, self.observations, self.actions, \
-        self.rewards, self.terminals, self.extras, self.rng = extract(
-            d,
-            "bottom", "top", "size", "observations", "actions", "rewards",
-            "terminals", "extras", "rng"
-        )
+            self.rewards, self.terminals, self.extras, self.rng = extract(
+                d,
+                "bottom", "top", "size", "observations", "actions", "rewards",
+                "terminals", "extras", "rng"
+            )
 
     def add_sample(self, observation, action, reward, terminal, extra=None):
         """Add a time step record.

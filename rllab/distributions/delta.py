@@ -1,5 +1,6 @@
 from rllab.distributions.base import Distribution
 
+
 class Delta(Distribution):
     @property
     def dim(self):
@@ -30,5 +31,5 @@ class Delta(Distribution):
     def dist_info_keys(self):
         return None
 
-    def entropy(self,dist_info):
+    def entropy(self, dist_info):
         return 0

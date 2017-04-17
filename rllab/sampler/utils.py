@@ -32,7 +32,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1):
             time.sleep(timestep / speedup)
     if animated:
         env.render(close=True)
-        #env.render()
+        # env.render()
 
     return dict(
         observations=tensor_utils.stack_tensor_list(observations),

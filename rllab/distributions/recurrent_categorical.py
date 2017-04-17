@@ -24,7 +24,8 @@ class RecurrentCategorical(Distribution):
         new_prob_var = new_dist_info_vars["prob"]
         # Assume layout is N * T * A
         return TT.sum(
-            old_prob_var * (TT.log(old_prob_var + TINY) - TT.log(new_prob_var + TINY)),
+            old_prob_var * (TT.log(old_prob_var + TINY) -
+                            TT.log(new_prob_var + TINY)),
             axis=2
         )
 
@@ -60,14 +61,16 @@ class RecurrentCategorical(Distribution):
         # Assume layout is N * T * A
         a_dim = probs.shape[-1]
         # a_dim = TT.printing.Print("lala")(a_dim)
-        flat_logli = self._cat.log_likelihood_sym(xs.reshape((-1, a_dim)), dict(prob=probs.reshape((-1, a_dim))))
+        flat_logli = self._cat.log_likelihood_sym(xs.reshape(
+            (-1, a_dim)), dict(prob=probs.reshape((-1, a_dim))))
         return flat_logli.reshape(probs.shape[:2])
 
     def log_likelihood(self, xs, dist_info):
         probs = dist_info["prob"]
         # Assume layout is N * T * A
         a_dim = probs.shape[-1]
-        flat_logli = self._cat.log_likelihood_sym(xs.reshape((-1, a_dim)), dict(prob=probs.reshape((-1, a_dim))))
+        flat_logli = self._cat.log_likelihood_sym(xs.reshape(
+            (-1, a_dim)), dict(prob=probs.reshape((-1, a_dim))))
         return flat_logli.reshape(probs.shape[:2])
 
     @property

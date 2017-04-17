@@ -1,6 +1,5 @@
 
 
-
 import tensorflow as tf
 import numpy as np
 from tf_rllab.distributions.base import Distribution
@@ -31,13 +30,14 @@ class DiagonalGaussian(Distribution):
         # { (\mu_1 - \mu_2)^2 + \sigma_1^2 - \sigma_2^2 } / (2\sigma_2^2) +
         # ln(\sigma_2/\sigma_1)
         numerator = np.square(old_means - new_means) + \
-                    np.square(old_std) - np.square(new_std)
+            np.square(old_std) - np.square(new_std)
         denominator = 2 * np.square(new_std) + 1e-8
         return np.sum(
             numerator / denominator + new_log_stds - old_log_stds, axis=-1)
         # more lossy version
         # return TT.sum(
-        #     numerator / denominator + TT.log(new_std) - TT.log(old_std ), axis=-1)
+        # numerator / denominator + TT.log(new_std) - TT.log(old_std ),
+        # axis=-1)
 
     def kl_sym(self, old_dist_info_vars, new_dist_info_vars):
         old_means = old_dist_info_vars["mean"]
@@ -56,7 +56,7 @@ class DiagonalGaussian(Distribution):
         # { (\mu_1 - \mu_2)^2 + \sigma_1^2 - \sigma_2^2 } / (2\sigma_2^2) +
         # ln(\sigma_2/\sigma_1)
         numerator = tf.square(old_means - new_means) + \
-                    tf.square(old_std) - tf.square(new_std)
+            tf.square(old_std) - tf.square(new_std)
         denominator = 2 * tf.square(new_std) + 1e-8
         return tf.reduce_sum(
             numerator / denominator + new_log_stds - old_log_stds, reduction_indices=-1)
@@ -71,8 +71,8 @@ class DiagonalGaussian(Distribution):
         log_stds = dist_info_vars["log_std"]
         zs = (x_var - means) / tf.exp(log_stds)
         return - tf.reduce_sum(log_stds, reduction_indices=-1) - \
-               0.5 * tf.reduce_sum(tf.square(zs), reduction_indices=-1) - \
-               0.5 * self.dim * np.log(2 * np.pi)
+            0.5 * tf.reduce_sum(tf.square(zs), reduction_indices=-1) - \
+            0.5 * self.dim * np.log(2 * np.pi)
 
     def sample(self, dist_info):
         means = dist_info["mean"]
@@ -85,8 +85,8 @@ class DiagonalGaussian(Distribution):
         log_stds = dist_info["log_std"]
         zs = (xs - means) / np.exp(log_stds)
         return - np.sum(log_stds, axis=-1) - \
-               0.5 * np.sum(np.square(zs), axis=-1) - \
-               0.5 * self.dim * np.log(2 * np.pi)
+            0.5 * np.sum(np.square(zs), axis=-1) - \
+            0.5 * self.dim * np.log(2 * np.pi)
 
     def entropy(self, dist_info):
         log_stds = dist_info["log_std"]

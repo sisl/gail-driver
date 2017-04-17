@@ -195,7 +195,8 @@ class GaussianMLPRegressor(LasagnePowered, Serializable):
 
         if self._subsample_factor < 1:
             num_samples_tot = xs.shape[0]
-            idx = np.random.randint(0, num_samples_tot, int(num_samples_tot * self._subsample_factor))
+            idx = np.random.randint(0, num_samples_tot, int(
+                num_samples_tot * self._subsample_factor))
             xs, ys = xs[idx], ys[idx]
 
         if self._normalize_inputs:
@@ -233,7 +234,8 @@ class GaussianMLPRegressor(LasagnePowered, Serializable):
 
         logger.record_tabular(prefix + 'LossBefore', loss_before / batch_count)
         logger.record_tabular(prefix + 'LossAfter', loss_after / batch_count)
-        logger.record_tabular(prefix + 'dLoss', loss_before - loss_after / batch_count)
+        logger.record_tabular(
+            prefix + 'dLoss', loss_before - loss_after / batch_count)
         if self._use_trust_region:
             logger.record_tabular(prefix + 'MeanKL', mean_kl / batch_count)
 

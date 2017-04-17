@@ -30,8 +30,8 @@ class CartpoleSwingupEnv(Box2DEnv, Serializable):
         self._set_state(self.initial_state)
         self._invalidate_state_caches()
         bounds = np.array([
-            [-1, -2, np.pi-1, -3],
-            [1, 2, np.pi+1, 3],
+            [-1, -2, np.pi - 1, -3],
+            [1, 2, np.pi + 1, 3],
         ])
         low, high = bounds
         xpos, xvel, apos, avel = np.random.uniform(low, high)
@@ -64,4 +64,3 @@ class CartpoleSwingupEnv(Box2DEnv, Serializable):
             return np.asarray([+10])
         else:
             return np.asarray([0])
-

@@ -1,6 +1,7 @@
 from .env_spec import EnvSpec
 import collections
 
+
 class Env(object):
     def step(self, action):
         """
@@ -72,7 +73,6 @@ class Env(object):
         """
         raise NotImplementedError
 
-
     def terminate(self):
         """
         Clean up operation,
@@ -80,7 +80,8 @@ class Env(object):
         pass
 
 
-_Step = collections.namedtuple("Step", ["observation", "reward", "done", "info"])
+_Step = collections.namedtuple(
+    "Step", ["observation", "reward", "done", "info"])
 
 
 def Step(observation, reward, done, **kwargs):
@@ -90,4 +91,3 @@ def Step(observation, reward, done, **kwargs):
     Put extra diagnostic info in the kwargs
     """
     return _Step(observation, reward, done, kwargs)
-

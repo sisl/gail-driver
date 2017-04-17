@@ -62,9 +62,11 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
                     name="reshape_feature",
                     op=lambda flat_feature, input: tf.reshape(
                         flat_feature,
-                        tf.pack([tf.shape(input)[0], tf.shape(input)[1], feature_dim])
+                        tf.pack(
+                            [tf.shape(input)[0], tf.shape(input)[1], feature_dim])
                     ),
-                    shape_op=lambda _, input_shape: (input_shape[0], input_shape[1], feature_dim)
+                    shape_op=lambda _, input_shape: (
+                        input_shape[0], input_shape[1], feature_dim)
                 )
 
             mean_network = GRUNetwork(
@@ -99,16 +101,18 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
             self.l_input = l_input
             self.state_include_action = state_include_action
 
-            flat_input_var = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name="flat_input")
+            flat_input_var = tf.placeholder(
+                dtype=tf.float32, shape=(None, input_dim), name="flat_input")
             if feature_network is None:
                 feature_var = flat_input_var
             else:
-                feature_var = L.get_output(l_flat_feature, {feature_network.input_layer: flat_input_var})
+                feature_var = L.get_output(
+                    l_flat_feature, {feature_network.input_layer: flat_input_var})
 
             self.f_step_mean_std = tensor_utils.compile_function(
                 [
                     flat_input_var,
-                    #mean_network.step_prev_hidden_layer.input_var,
+                    # mean_network.step_prev_hidden_layer.input_var,
                     mean_network.step_prev_state_layer.input_var
                 ],
                 L.get_output([
@@ -153,7 +157,8 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
             flat_input_var = tf.reshape(all_input_var, (-1, self.input_dim))
             means, log_stds = L.get_output(
                 [self.mean_network.output_layer, self.l_log_std],
-                {self.l_input: all_input_var, self.feature_network.input_layer: flat_input_var}
+                {self.l_input: all_input_var,
+                    self.feature_network.input_layer: flat_input_var}
             )
         return dict(mean=means, log_std=log_stds)
 
@@ -166,7 +171,8 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
             dones = [True]
         dones = np.asarray(dones)
         if self.prev_actions is None or len(dones) != len(self.prev_actions):
-            self.prev_actions = np.zeros((len(dones), self.action_space.flat_dim))
+            self.prev_actions = np.zeros(
+                (len(dones), self.action_space.flat_dim))
             self.prev_hiddens = np.zeros((len(dones), self.hidden_dim))
 
         self.prev_actions[dones] = 0.
@@ -192,7 +198,8 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
             ], axis=-1)
         else:
             all_input = flat_obs
-        means, log_stds, hidden_vec = self.f_step_mean_std(all_input, self.prev_hiddens)
+        means, log_stds, hidden_vec = self.f_step_mean_std(
+            all_input, self.prev_hiddens)
         rnd = np.random.normal(size=means.shape)
         actions = rnd * np.exp(log_stds) + means
         prev_actions = self.prev_actions
@@ -222,5 +229,6 @@ class GaussianGRUPolicy(StochasticPolicy, LayersPowered, Serializable):
             return []
 
     def log_diagnostics(self, paths):
-        log_stds = np.vstack([path["agent_infos"]["log_std"] for path in paths])
+        log_stds = np.vstack([path["agent_infos"]["log_std"]
+                              for path in paths])
         logger.record_tabular('AveragePolicyStd', np.mean(np.exp(log_stds)))

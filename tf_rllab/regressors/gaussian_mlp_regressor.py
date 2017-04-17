@@ -102,9 +102,12 @@ class GaussianMLPRegressor(LayersPowered, Serializable):
             LayersPowered.__init__(self, [l_mean, l_log_std])
 
             xs_var = mean_network.input_layer.input_var
-            ys_var = tf.placeholder(dtype=tf.float32, name="ys", shape=(None, output_dim))
-            old_means_var = tf.placeholder(dtype=tf.float32, name="ys", shape=(None, output_dim))
-            old_log_stds_var = tf.placeholder(dtype=tf.float32, name="old_log_stds", shape=(None, output_dim))
+            ys_var = tf.placeholder(
+                dtype=tf.float32, name="ys", shape=(None, output_dim))
+            old_means_var = tf.placeholder(
+                dtype=tf.float32, name="ys", shape=(None, output_dim))
+            old_log_stds_var = tf.placeholder(
+                dtype=tf.float32, name="old_log_stds", shape=(None, output_dim))
 
             x_mean_var = tf.Variable(
                 np.zeros((1,) + input_shape, dtype=np.float32),
@@ -126,8 +129,10 @@ class GaussianMLPRegressor(LayersPowered, Serializable):
             normalized_xs_var = (xs_var - x_mean_var) / x_std_var
             normalized_ys_var = (ys_var - y_mean_var) / y_std_var
 
-            normalized_means_var = L.get_output(l_mean, {mean_network.input_layer: normalized_xs_var})
-            normalized_log_stds_var = L.get_output(l_log_std, {mean_network.input_layer: normalized_xs_var})
+            normalized_means_var = L.get_output(
+                l_mean, {mean_network.input_layer: normalized_xs_var})
+            normalized_log_stds_var = L.get_output(
+                l_log_std, {mean_network.input_layer: normalized_xs_var})
 
             means_var = normalized_means_var * y_std_var + y_mean_var
             log_stds_var = normalized_log_stds_var + tf.log(y_std_var)
@@ -137,29 +142,37 @@ class GaussianMLPRegressor(LayersPowered, Serializable):
 
             dist = self._dist = DiagonalGaussian(output_dim)
 
-            normalized_dist_info_vars = dict(mean=normalized_means_var, log_std=normalized_log_stds_var)
+            normalized_dist_info_vars = dict(
+                mean=normalized_means_var, log_std=normalized_log_stds_var)
 
             mean_kl = tf.reduce_mean(dist.kl_sym(
-                dict(mean=normalized_old_means_var, log_std=normalized_old_log_stds_var),
+                dict(mean=normalized_old_means_var,
+                     log_std=normalized_old_log_stds_var),
                 normalized_dist_info_vars,
             ))
 
-            loss = - tf.reduce_mean(dist.log_likelihood_sym(normalized_ys_var, normalized_dist_info_vars))
+            loss = - \
+                tf.reduce_mean(dist.log_likelihood_sym(
+                    normalized_ys_var, normalized_dist_info_vars))
 
-            self._f_predict = tensor_utils.compile_function([xs_var], means_var)
-            self._f_pdists = tensor_utils.compile_function([xs_var], [means_var, log_stds_var])
+            self._f_predict = tensor_utils.compile_function(
+                [xs_var], means_var)
+            self._f_pdists = tensor_utils.compile_function(
+                [xs_var], [means_var, log_stds_var])
             self._l_mean = l_mean
             self._l_log_std = l_log_std
 
             optimizer_args = dict(
                 loss=loss,
                 target=self,
-                network_outputs=[normalized_means_var, normalized_log_stds_var],
+                network_outputs=[normalized_means_var,
+                                 normalized_log_stds_var],
             )
 
             if use_trust_region:
                 optimizer_args["leq_constraint"] = (mean_kl, step_size)
-                optimizer_args["inputs"] = [xs_var, ys_var, old_means_var, old_log_stds_var]
+                optimizer_args["inputs"] = [
+                    xs_var, ys_var, old_means_var, old_log_stds_var]
             else:
                 optimizer_args["inputs"] = [xs_var, ys_var]
 
@@ -179,21 +192,26 @@ class GaussianMLPRegressor(LayersPowered, Serializable):
     def fit(self, xs, ys):
         if self._subsample_factor < 1:
             num_samples_tot = xs.shape[0]
-            idx = np.random.randint(0, num_samples_tot, int(num_samples_tot * self._subsample_factor))
+            idx = np.random.randint(0, num_samples_tot, int(
+                num_samples_tot * self._subsample_factor))
             xs, ys = xs[idx], ys[idx]
 
         sess = tf.get_default_session()
         if self._normalize_inputs:
             # recompute normalizing constants for inputs
             sess.run([
-                tf.assign(self._x_mean_var, np.mean(xs, axis=0, keepdims=True)),
-                tf.assign(self._x_std_var, np.std(xs, axis=0, keepdims=True) + 1e-8),
+                tf.assign(self._x_mean_var, np.mean(
+                    xs, axis=0, keepdims=True)),
+                tf.assign(self._x_std_var, np.std(
+                    xs, axis=0, keepdims=True) + 1e-8),
             ])
         if self._normalize_outputs:
             # recompute normalizing constants for outputs
             sess.run([
-                tf.assign(self._y_mean_var, np.mean(ys, axis=0, keepdims=True)),
-                tf.assign(self._y_std_var, np.std(ys, axis=0, keepdims=True) + 1e-8),
+                tf.assign(self._y_mean_var, np.mean(
+                    ys, axis=0, keepdims=True)),
+                tf.assign(self._y_std_var, np.std(
+                    ys, axis=0, keepdims=True) + 1e-8),
             ])
         if self._use_trust_region:
             old_means, old_log_stds = self._f_pdists(xs)
@@ -210,7 +228,8 @@ class GaussianMLPRegressor(LayersPowered, Serializable):
         loss_after = self._optimizer.loss(inputs)
         logger.record_tabular(prefix + 'LossAfter', loss_after)
         if self._use_trust_region:
-            logger.record_tabular(prefix + 'MeanKL', self._optimizer.constraint_val(inputs))
+            logger.record_tabular(
+                prefix + 'MeanKL', self._optimizer.constraint_val(inputs))
         logger.record_tabular(prefix + 'dLoss', loss_before - loss_after)
 
     def predict(self, xs):
@@ -238,7 +257,8 @@ class GaussianMLPRegressor(LayersPowered, Serializable):
         normalized_xs_var = (x_var - self._x_mean_var) / self._x_std_var
 
         normalized_means_var, normalized_log_stds_var = \
-            L.get_output([self._l_mean, self._l_log_std], {self._mean_network.input_layer: normalized_xs_var})
+            L.get_output([self._l_mean, self._l_log_std], {
+                         self._mean_network.input_layer: normalized_xs_var})
 
         means_var = normalized_means_var * self._y_std_var + self._y_mean_var
         log_stds_var = normalized_log_stds_var + TT.log(self._y_std_var)

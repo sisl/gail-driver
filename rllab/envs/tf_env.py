@@ -55,7 +55,8 @@ class TfEnv(ProxyEnv):
 
     @classmethod
     def wrap(cls, env_cls, **extra_kwargs):
-        # Use a class wrapper rather than a lambda method for smoother serialization
+        # Use a class wrapper rather than a lambda method for smoother
+        # serialization
         return WrappedCls(cls, env_cls, extra_kwargs)
 
 

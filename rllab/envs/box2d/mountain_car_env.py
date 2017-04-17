@@ -60,4 +60,3 @@ class MountainCarEnv(Box2DEnv, Serializable):
             return np.asarray([+1])
         else:
             return np.asarray([0])
-

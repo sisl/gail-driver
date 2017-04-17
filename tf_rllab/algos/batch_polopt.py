@@ -6,6 +6,7 @@ from tf_rllab.policies.base import Policy
 import tensorflow as tf
 from tf_rllab.samplers.batch_sampler import BatchSampler
 
+
 class BatchPolopt(RLAlgorithm):
     """
     Base class for batch sampling-based policy optimization methods.
@@ -81,7 +82,7 @@ class BatchPolopt(RLAlgorithm):
         if sampler_args is None:
             sampler_args = dict()
         self.sampler = sampler_cls(self, **sampler_args)
-	self.temporal_noise_thresh = kwargs['temporal_noise_thresh']
+        self.temporal_noise_thresh = kwargs['temporal_noise_thresh']
         self.init_opt()
 
     def start_worker(self):
@@ -108,8 +109,8 @@ class BatchPolopt(RLAlgorithm):
             for itr in range(self.start_itr, self.n_itr):
                 self.policy.save_params(itr)
                 itr_start_time = time.time()
-		if itr >= self.temporal_noise_thresh:
-		    self.env._noise_indicies = None
+                if itr >= self.temporal_noise_thresh:
+                    self.env._noise_indicies = None
 
                 with logger.prefix('itr #%d | ' % itr):
                     logger.log("Obtaining samples...")
@@ -117,17 +118,21 @@ class BatchPolopt(RLAlgorithm):
                     logger.log("Processing samples...")
                     samples_data = self.process_samples(itr, paths)
                     logger.log("Logging diagnostics...")
-                    self.log_diagnostics(paths) # env, policy, baseline have individual log_diagnos methods for overriding
+                    # env, policy, baseline have individual log_diagnos methods
+                    # for overriding
+                    self.log_diagnostics(paths)
                     logger.log("Optimizing policy...")
                     self.optimize_policy(itr, samples_data)
                     logger.log("Saving snapshot...")
-                    params = self.get_itr_snapshot(itr, samples_data)  # , **kwargs)
+                    params = self.get_itr_snapshot(
+                        itr, samples_data)  # , **kwargs)
                     if self.store_paths:
                         params["paths"] = samples_data["paths"]
                     logger.save_itr_params(itr, params)
                     logger.log("Saved")
                     logger.record_tabular('Time', time.time() - start_time)
-                    logger.record_tabular('ItrTime', time.time() - itr_start_time)
+                    logger.record_tabular(
+                        'ItrTime', time.time() - itr_start_time)
                     logger.dump_tabular(with_prefix=False)
                     if self.plot:
                         self.update_plot()

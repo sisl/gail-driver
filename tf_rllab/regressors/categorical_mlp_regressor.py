@@ -1,6 +1,5 @@
 
 
-
 import numpy as np
 
 import tensorflow as tf
@@ -76,8 +75,10 @@ class CategoricalMLPRegressor(LayersPowered, Serializable):
             LayersPowered.__init__(self, [l_prob])
 
             xs_var = prob_network.input_layer.input_var
-            ys_var = tf.placeholder(dtype=tf.float32, shape=[None, output_dim], name="ys")
-            old_prob_var = tf.placeholder(dtype=tf.float32, shape=[None, output_dim], name="old_prob")
+            ys_var = tf.placeholder(dtype=tf.float32, shape=[
+                                    None, output_dim], name="ys")
+            old_prob_var = tf.placeholder(dtype=tf.float32, shape=[
+                                          None, output_dim], name="old_prob")
 
             x_mean_var = tf.get_variable(
                 name="x_mean",
@@ -92,7 +93,8 @@ class CategoricalMLPRegressor(LayersPowered, Serializable):
 
             normalized_xs_var = (xs_var - x_mean_var) / x_std_var
 
-            prob_var = L.get_output(l_prob, {prob_network.input_layer: normalized_xs_var})
+            prob_var = L.get_output(
+                l_prob, {prob_network.input_layer: normalized_xs_var})
 
             old_info_vars = dict(prob=old_prob_var)
             info_vars = dict(prob=prob_var)
@@ -103,14 +105,16 @@ class CategoricalMLPRegressor(LayersPowered, Serializable):
 
             loss = - tf.reduce_mean(dist.log_likelihood_sym(ys_var, info_vars))
 
-            predicted = tensor_utils.to_onehot_sym(tf.argmax(prob_var, dimension=1), output_dim)
+            predicted = tensor_utils.to_onehot_sym(
+                tf.argmax(prob_var, dimension=1), output_dim)
 
             self.prob_network = prob_network
             self.f_predict = tensor_utils.compile_function([xs_var], predicted)
             self.f_prob = tensor_utils.compile_function([xs_var], prob_var)
             self.l_prob = l_prob
 
-            self.optimizer.update_opt(loss=loss, target=self, network_outputs=[prob_var], inputs=[xs_var, ys_var])
+            self.optimizer.update_opt(loss=loss, target=self, network_outputs=[
+                                      prob_var], inputs=[xs_var, ys_var])
             self.tr_optimizer.update_opt(loss=loss, target=self, network_outputs=[prob_var],
                                          inputs=[xs_var, ys_var, old_prob_var],
                                          leq_constraint=(mean_kl, step_size)
@@ -161,12 +165,14 @@ class CategoricalMLPRegressor(LayersPowered, Serializable):
 
     def dist_info_sym(self, x_var):
         normalized_xs_var = (x_var - self.x_mean_var) / self.x_std_var
-        prob = L.get_output(self.l_prob, {self.prob_network.input_layer: normalized_xs_var})
+        prob = L.get_output(
+            self.l_prob, {self.prob_network.input_layer: normalized_xs_var})
         return dict(prob=prob)
 
     def log_likelihood_sym(self, x_var, y_var):
         normalized_xs_var = (x_var - self.x_mean_var) / self.x_std_var
-        prob = L.get_output(self.l_prob, {self.prob_network.input_layer: normalized_xs_var})
+        prob = L.get_output(
+            self.l_prob, {self.prob_network.input_layer: normalized_xs_var})
         return self._dist.log_likelihood_sym(y_var, dict(prob=prob))
 
     def get_param_values(self, **tags):

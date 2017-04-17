@@ -60,7 +60,8 @@ class GymEnv(Env, Serializable):
                  force_reset=False):
         if log_dir is None:
             if logger.get_snapshot_dir() is None:
-                logger.log("Warning: skipping Gym environment monitoring since snapshot_dir not configured.")
+                logger.log(
+                    "Warning: skipping Gym environment monitoring since snapshot_dir not configured.")
             else:
                 log_dir = os.path.join(logger.get_snapshot_dir(), "gym_log")
         Serializable.quick_init(self, locals())
@@ -79,7 +80,8 @@ class GymEnv(Env, Serializable):
             else:
                 if video_schedule is None:
                     video_schedule = CappedCubicVideoSchedule()
-            self.env = gym.wrappers.Monitor(self.env, log_dir, video_callable=video_schedule, force=True)
+            self.env = gym.wrappers.Monitor(
+                self.env, log_dir, video_callable=video_schedule, force=True)
             self.monitoring = True
 
         self._observation_space = convert_gym_space(env.observation_space)

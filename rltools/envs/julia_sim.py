@@ -24,11 +24,14 @@ else:
 julia_env_dict = {}
 julia_env_dict["Auto2D"] = auto2D_path
 
+
 class JuliaEnv(object):
     def __init__(self,
-                 env_name, # name of the environment to load
+                 env_name,  # name of the environment to load
                  batch_size,
-                 param_dict, # dictionary of parameters Dict{String,Any} passed to the env initialization
+                 # dictionary of parameters Dict{String,Any} passed to the env
+                 # initialization
+                 param_dict,
                  ):
 
         # Load in functions
@@ -39,7 +42,7 @@ class JuliaEnv(object):
         self.simparams = self.j.gen_simparams(batch_size, param_dict)
 
         if GX:
-            _, self.ax = plt.subplots(1,1)
+            _, self.ax = plt.subplots(1, 1)
 
     def reset(self, render=False):
 
@@ -47,7 +50,8 @@ class JuliaEnv(object):
             self.ax.cla()
 
         self.j.reset(self.simparams)
-        observation = self.j.observe(self.simparams) # [batch_size x n_features]
+        # [batch_size x n_features]
+        observation = self.j.observe(self.simparams)
 
         return observation
 
@@ -106,7 +110,7 @@ class JuliaLQGEnv():
     def step(self, action):
         info = {}
 
-        action = np.clip(action,self.action_space.low,self.action_space.high)
+        action = np.clip(action, self.action_space.low, self.action_space.high)
         reward = self.j.reward(self.x, action)
         self.x = self.j.tick(self.x, action)
         observation = self.j.observe(self.x)
@@ -118,11 +122,11 @@ class JuliaLQGEnv():
 
     @property
     def action_space(self):
-        return Box(np.array([-5,-5]), np.array([5, 5]))
+        return Box(np.array([-5, -5]), np.array([5, 5]))
 
     @property
     def observation_space(self):
-        return Box(np.array([-np.inf,-np.inf]), np.array([np.inf, np.inf]))
+        return Box(np.array([-np.inf, -np.inf]), np.array([np.inf, np.inf]))
 
     @property
     def reward_mech(self):
@@ -141,31 +145,36 @@ class JuliaDriveEnv():
         self.j.eval("include(\"" + auto1D_path + "\")")
         self.j.using("Auto1D")
 
-        self.roadway = self.j.gen_stadium_roadway(1) # one-lane track
+        self.roadway = self.j.gen_stadium_roadway(1)  # one-lane track
 
     def reset(self, render=False):
         self.tstep = 0
 
         # Initialize vehicles and scene, get state
-        self.scene, self.model1, self.model2 = self.j.restart(self.roadway, render)
+        self.scene, self.model1, self.model2 = self.j.restart(
+            self.roadway, render)
         self.d, self.r, self.s, _ = self.j.get_state(self.scene, self.roadway)
-        if render: self.scene0 = self.j.deepcopy(self.scene)
+        if render:
+            self.scene0 = self.j.deepcopy(self.scene)
 
         return np.array([self.d, self.r, self.s])
 
     def render(self, actions, filename):
-        self.j.reel_drive_1d(filename+".gif", actions, self.scene0, self.model1, self.model2, self.roadway)
+        self.j.reel_drive_1d(filename + ".gif", actions,
+                             self.scene0, self.model1, self.model2, self.roadway)
         return
 
     def step(self, action):
         info = {}
         done = False
 
-        action = np.clip(action,self.action_space.low,self.action_space.high)
-        self.d, self.r, self.s, done = self.j.step_forward(self.scene, self.roadway, self.model1, self.model2, action[0])
+        action = np.clip(action, self.action_space.low, self.action_space.high)
+        self.d, self.r, self.s, done = self.j.step_forward(
+            self.scene, self.roadway, self.model1, self.model2, action[0])
         self.tstep += 1
 
-        if self.tstep == 1000: done = True
+        if self.tstep == 1000:
+            done = True
 
         reward = 0.0
         reward += (self.d >= 17 and self.d <= 23) * 1.0
@@ -187,7 +196,7 @@ class JuliaDriveEnv():
         return Box(low=-np.inf, high=np.inf, shape=(3,))
 
     def _cost_d(self, d_des):
-        return math.exp(-(self.d - d_des)**2/16.)
+        return math.exp(-(self.d - d_des)**2 / 16.)
 
     @property
     def reward_mech(self):
@@ -196,9 +205,10 @@ class JuliaDriveEnv():
         """
         return 'global'
 
+
 class JuliaDriveEnv2D():
     def __init__(self, n_features, trajdata_indeces,
-                 train_seg_index = 0, frame_num = 0, save_history = False):
+                 train_seg_index=0, frame_num=0, save_history=False):
 
         self.t = 0.1
 
@@ -217,13 +227,18 @@ class JuliaDriveEnv2D():
         #self.simparams = self.j.gen_simparams([1])
         if trajdata_indeces == []:
             print "USING PASSIVE/AGGRESSIVE"
-            append_path = lambda x : pulltraces_path + x
-            trajdatas = ["trajdata_passive_aggressive1.txt", "trajdata_passive_aggressive2.txt"]
-            roadways = ["roadway_passive_aggressive.txt","roadway_passive_aggressive.txt"]
 
-            #self.simparams= self.j.gen_simparams_from_trajdatas(map(append_path,trajdatas),map(append_path,roadways),
-                #weights[0], weights[1], weights[2], weights[3], weights[4], weights[5])
-            self.simparams= self.j.gen_simparams_from_trajdatas(map(append_path,trajdatas),map(append_path,roadways))
+            def append_path(x): return pulltraces_path + x
+            trajdatas = ["trajdata_passive_aggressive1.txt",
+                         "trajdata_passive_aggressive2.txt"]
+            roadways = ["roadway_passive_aggressive.txt",
+                        "roadway_passive_aggressive.txt"]
+
+            # self.simparams= self.j.gen_simparams_from_trajdatas(map(append_path,trajdatas),map(append_path,roadways),
+            # weights[0], weights[1], weights[2], weights[3], weights[4],
+            # weights[5])
+            self.simparams = self.j.gen_simparams_from_trajdatas(
+                map(append_path, trajdatas), map(append_path, roadways))
 
         else:
             #self.simparams = self.j.gen_simparams(trajdata_indeces, weights[0], weights[1], weights[2], weights[3], weights[4], weights[5])
@@ -232,7 +247,7 @@ class JuliaDriveEnv2D():
         self.features = self.j.alloc_features()
 
         if GX:
-            _, self.ax = plt.subplots(1,1)
+            _, self.ax = plt.subplots(1, 1)
 
     def reset(self, render=False):
         self.tstep = 0
@@ -242,7 +257,8 @@ class JuliaDriveEnv2D():
 
         # Initialize vehicles and scene, get state
         if self.train_seg_index != 0:
-            self.j.restart_specific(self.simparams, self.train_seg_index, self.frame_num)
+            self.j.restart_specific(
+                self.simparams, self.train_seg_index, self.frame_num)
         else:
             self.j.restart(self.simparams)
         self.features = self.j.get_state(self.features, self.simparams)
@@ -255,7 +271,8 @@ class JuliaDriveEnv2D():
 
         self.ax.cla()
 
-        img = self.j.render(self.simparams, np.zeros((500,500)).astype('uint32'))
+        img = self.j.render(self.simparams, np.zeros(
+            (500, 500)).astype('uint32'))
         #img=self.j.retrieve_frame_data(500, 500, self.simparams)
         self.ax.imshow(img, cmap=plt.get_cmap('bwr'))
         #self.ax.imshow(img, cmap=plt.get_cmap('seismic'))
@@ -269,7 +286,7 @@ class JuliaDriveEnv2D():
     def save_gif(self, actions, filename):
         # TODO - have a way to record states over time to do rendering
         # actions is a matrix whose columns are the actions
-        self.j.reel_drive(filename+".gif", actions, self.simparams)
+        self.j.reel_drive(filename + ".gif", actions, self.simparams)
         return
 
     def step(self, action):
@@ -282,7 +299,8 @@ class JuliaDriveEnv2D():
 
         self.tstep += 1
 
-        if self.tstep + 1 == self.max_nsteps: done = True
+        if self.tstep + 1 == self.max_nsteps:
+            done = True
 
         obs = self.features
         info = {}
@@ -292,7 +310,7 @@ class JuliaDriveEnv2D():
     @property
     def action_space(self):
         # (accel [m/s2], turnrate [rad/s])
-        return Box(np.array([-5.0,-1.0]), np.array([3.0,1.0]))
+        return Box(np.array([-5.0, -1.0]), np.array([3.0, 1.0]))
 
     @property
     def observation_space(self):
@@ -306,12 +324,14 @@ class JuliaDriveEnv2D():
         """
         return 'global'
 
+
 class JuliaDriveEnv2DBatch():
     def __init__(self,
-                 n_features, # number of features
-                 batch_size, # number of simultaneous sims
-                 weights, # reward weights, as a vector
-                 trajdata_indeces, # NGSIM trajdata indeces, full set is [1,2,3,4,5,6]
+                 n_features,  # number of features
+                 batch_size,  # number of simultaneous sims
+                 weights,  # reward weights, as a vector
+                 # NGSIM trajdata indeces, full set is [1,2,3,4,5,6]
+                 trajdata_indeces,
                  max_nsteps=1000,
                  ):
 
@@ -324,11 +344,12 @@ class JuliaDriveEnv2DBatch():
         self.j.eval("include(\"" + auto2D_path + "\")")
         self.j.using("Auto2D")
 
-        self.simparams = self.j.gen_simparams(trajdata_indeces, weights[0], weights[1], weights[2], weights[3], weights[4], weights[5], weights[6], batch_size)
+        self.simparams = self.j.gen_simparams(
+            trajdata_indeces, weights[0], weights[1], weights[2], weights[3], weights[4], weights[5], weights[6], batch_size)
         self.features = self.j.alloc_features(batch_size)
 
         if GX:
-            _, self.ax = plt.subplots(1,1)
+            _, self.ax = plt.subplots(1, 1)
 
     def reset(self, render=False):
         self.tstep = 0
@@ -374,7 +395,8 @@ class JuliaDriveEnv2DBatch():
 
         self.tstep += 1
 
-        if self.tstep + 1 == self.max_nsteps: done = True
+        if self.tstep + 1 == self.max_nsteps:
+            done = True
 
         obs = self.features
 
@@ -383,7 +405,7 @@ class JuliaDriveEnv2DBatch():
     @property
     def action_space(self):
         # (accel [m/s2], turnrate [rad/s])
-        return Box(np.array([-5.0,-1.0]), np.array([3.0,1.0]))
+        return Box(np.array([-5.0, -1.0]), np.array([3.0, 1.0]))
 
     @property
     def observation_space(self):
@@ -396,6 +418,7 @@ class JuliaDriveEnv2DBatch():
         Should probably add more here ...
         """
         return 'global'
+
 
 class JuliaEnvWrapper(JuliaEnv):
     _env_name = None
@@ -412,4 +435,3 @@ class JuliaEnvWrapper(JuliaEnv):
         cls._env_name = env_name
         cls._batch_size = batch_size
         cls._param_dict = param_dict
-

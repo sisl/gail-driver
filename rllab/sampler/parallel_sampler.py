@@ -17,7 +17,8 @@ def _worker_init(G, id):
 
 def initialize(n_parallel):
     singleton_pool.initialize(n_parallel)
-    singleton_pool.run_each(_worker_init, [(id,) for id in range(singleton_pool.n_parallel)])
+    singleton_pool.run_each(
+        _worker_init, [(id,) for id in range(singleton_pool.n_parallel)])
 
 
 def _get_scoped_G(G, scope):
@@ -52,7 +53,8 @@ def populate_task(env, policy, scope=None):
     if singleton_pool.n_parallel > 1:
         singleton_pool.run_each(
             _worker_populate_task,
-            [(pickle.dumps(env), pickle.dumps(policy), scope)] * singleton_pool.n_parallel
+            [(pickle.dumps(env), pickle.dumps(policy), scope)] *
+            singleton_pool.n_parallel
         )
     else:
         # avoid unnecessary copying
@@ -85,9 +87,11 @@ def _worker_set_policy_params(G, params, scope=None):
     G = _get_scoped_G(G, scope)
     G.policy.set_param_values(params)
 
-def _worker_set_env_params(G,params,scope=None):
+
+def _worker_set_env_params(G, params, scope=None):
     G = _get_scoped_G(G, scope)
     G.env.set_param_values(params)
+
 
 def _worker_collect_one_path(G, max_path_length, scope=None):
     G = _get_scoped_G(G, scope)
@@ -143,12 +147,15 @@ def truncate_paths(paths, max_samples):
     if len(paths) > 0:
         last_path = paths.pop(-1)
         truncated_last_path = dict()
-        truncated_len = len(last_path["rewards"]) - (total_n_samples - max_samples)
+        truncated_len = len(last_path["rewards"]) - \
+            (total_n_samples - max_samples)
         for k, v in last_path.items():
             if k in ["observations", "actions", "rewards"]:
-                truncated_last_path[k] = tensor_utils.truncate_tensor_list(v, truncated_len)
+                truncated_last_path[k] = tensor_utils.truncate_tensor_list(
+                    v, truncated_len)
             elif k in ["env_infos", "agent_infos"]:
-                truncated_last_path[k] = tensor_utils.truncate_tensor_dict(v, truncated_len)
+                truncated_last_path[k] = tensor_utils.truncate_tensor_dict(
+                    v, truncated_len)
             else:
                 raise NotImplementedError
         paths.append(truncated_last_path)
