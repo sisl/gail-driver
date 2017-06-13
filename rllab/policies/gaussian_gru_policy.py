@@ -106,7 +106,8 @@ class GaussianGRUPolicy(StochasticPolicy, LasagnePowered, Serializable):
             )
         else:
             all_input_var = obs_var
-        means, log_stds = L.get_output([self._mean_network.output_layer, self._l_log_std], all_input_var)
+        means, log_stds = L.get_output(
+            [self._mean_network.output_layer, self._l_log_std], all_input_var)
         return dict(mean=means, log_std=log_stds)
 
     def reset(self):
@@ -132,7 +133,8 @@ class GaussianGRUPolicy(StochasticPolicy, LasagnePowered, Serializable):
             all_input = self.observation_space.flatten(observation)
             # should not be used
             prev_action = np.nan
-        mean, log_std, hidden_vec = [x[0] for x in self._f_step_mean_std([all_input], [self._prev_hidden])]
+        mean, log_std, hidden_vec = [
+            x[0] for x in self._f_step_mean_std([all_input], [self._prev_hidden])]
         rnd = np.random.normal(size=mean.shape)
         action = rnd * np.exp(log_std) + mean
         self._prev_action = action

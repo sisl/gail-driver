@@ -54,7 +54,8 @@ class REPS(BatchPolopt, Serializable):
         # Init dual param values
         self.param_eta = 15.
         # Adjust for linear feature vector.
-        self.param_v = np.random.rand(self.env.observation_space.flat_dim * 2 + 4)
+        self.param_v = np.random.rand(
+            self.env.observation_space.flat_dim * 2 + 4)
 
         # Theano vars
         obs_var = self.env.observation_space.new_tensor_variable(
@@ -90,7 +91,8 @@ class REPS(BatchPolopt, Serializable):
                 dtype=theano.config.floatX
             ) for k in self.policy.state_info_keys
         }
-        state_info_vars_list = [state_info_vars[k] for k in self.policy.state_info_keys]
+        state_info_vars_list = [state_info_vars[k]
+                                for k in self.policy.state_info_keys]
 
         # Policy-related symbolics
         dist_info_vars = self.policy.dist_info_sym(obs_var, state_info_vars)
@@ -146,16 +148,19 @@ class REPS(BatchPolopt, Serializable):
                 ndim=2 + is_recurrent,
                 dtype=theano.config.floatX
             ) for k in dist.dist_info_keys
-            }
-        old_dist_info_vars_list = [old_dist_info_vars[k] for k in dist.dist_info_keys]
+        }
+        old_dist_info_vars_list = [old_dist_info_vars[k]
+                                   for k in dist.dist_info_keys]
 
         if is_recurrent:
-            mean_kl = TT.sum(dist.kl_sym(old_dist_info_vars, dist_info_vars) * valid_var) / TT.sum(valid_var)
+            mean_kl = TT.sum(dist.kl_sym(old_dist_info_vars,
+                                         dist_info_vars) * valid_var) / TT.sum(valid_var)
         else:
             mean_kl = TT.mean(dist.kl_sym(old_dist_info_vars, dist_info_vars))
 
         f_kl = ext.compile_function(
-            inputs=[obs_var, action_var] + state_info_vars_list + old_dist_info_vars_list + recurrent_vars,
+            inputs=[obs_var, action_var] + state_info_vars_list +
+            old_dist_info_vars_list + recurrent_vars,
             outputs=mean_kl,
         )
 
@@ -163,36 +168,40 @@ class REPS(BatchPolopt, Serializable):
         # Symbolic dual
         if is_recurrent:
             dual = param_eta * self.epsilon + \
-                   param_eta * TT.log(
-                       TT.sum(
-                           TT.exp(
-                               delta_v / param_eta - TT.max(delta_v / param_eta)
-                           ) * valid_var
-                       ) / TT.sum(valid_var)
-                   ) + param_eta * TT.max(delta_v / param_eta)
+                param_eta * TT.log(
+                    TT.sum(
+                        TT.exp(
+                            delta_v / param_eta -
+                            TT.max(delta_v / param_eta)
+                        ) * valid_var
+                    ) / TT.sum(valid_var)
+                ) + param_eta * TT.max(delta_v / param_eta)
         else:
             dual = param_eta * self.epsilon + \
-                   param_eta * TT.log(
-                       TT.mean(
-                           TT.exp(
-                               delta_v / param_eta - TT.max(delta_v / param_eta)
-                           )
-                       )
-                   ) + param_eta * TT.max(delta_v / param_eta)
+                param_eta * TT.log(
+                    TT.mean(
+                        TT.exp(
+                            delta_v / param_eta -
+                            TT.max(delta_v / param_eta)
+                        )
+                    )
+                ) + param_eta * TT.max(delta_v / param_eta)
         # Add L2 regularization.
         dual += self.L2_reg_dual * \
-                (TT.square(param_eta) + TT.square(1 / param_eta))
+            (TT.square(param_eta) + TT.square(1 / param_eta))
 
         # Symbolic dual gradient
         dual_grad = TT.grad(cost=dual, wrt=[param_eta, param_v])
 
         # Eval functions.
         f_dual = ext.compile_function(
-            inputs=[rewards, feat_diff] + state_info_vars_list + recurrent_vars + [param_eta, param_v],
+            inputs=[rewards, feat_diff] + state_info_vars_list +
+            recurrent_vars + [param_eta, param_v],
             outputs=dual
         )
         f_dual_grad = ext.compile_function(
-            inputs=[rewards, feat_diff] + state_info_vars_list + recurrent_vars + [param_eta, param_v],
+            inputs=[rewards, feat_diff] + state_info_vars_list +
+            recurrent_vars + [param_eta, param_v],
             outputs=dual_grad
         )
 
@@ -219,7 +228,8 @@ class REPS(BatchPolopt, Serializable):
 
         agent_infos = samples_data["agent_infos"]
         state_info_list = [agent_infos[k] for k in self.policy.state_info_keys]
-        dist_info_list = [agent_infos[k] for k in self.policy.distribution.dist_info_keys]
+        dist_info_list = [agent_infos[k]
+                          for k in self.policy.distribution.dist_info_keys]
         if self.policy.recurrent:
             recurrent_vals = [samples_data["valids"]]
         else:
@@ -231,9 +241,11 @@ class REPS(BatchPolopt, Serializable):
             feats = np.vstack([feats, np.zeros(feats.shape[1])])
             feat_diff.append(feats[1:] - feats[:-1])
         if self.policy.recurrent:
-            max_path_length = max([len(path["advantages"]) for path in samples_data["paths"]])
+            max_path_length = max([len(path["advantages"])
+                                   for path in samples_data["paths"]])
             # pad feature diffs
-            feat_diff = np.array([tensor_utils.pad_tensor(fd, max_path_length) for fd in feat_diff])
+            feat_diff = np.array([tensor_utils.pad_tensor(
+                fd, max_path_length) for fd in feat_diff])
         else:
             feat_diff = np.vstack(feat_diff)
 
@@ -251,14 +263,16 @@ class REPS(BatchPolopt, Serializable):
         def eval_dual(input):
             param_eta = input[0]
             param_v = input[1:]
-            val = f_dual(*([rewards, feat_diff] + state_info_list + recurrent_vals + [param_eta, param_v]))
+            val = f_dual(*([rewards, feat_diff] + state_info_list +
+                           recurrent_vals + [param_eta, param_v]))
             return val.astype(np.float64)
 
         # Set BFGS gradient eval function
         def eval_dual_grad(input):
             param_eta = input[0]
             param_v = input[1:]
-            grad = f_dual_grad(*([rewards, feat_diff] + state_info_list + recurrent_vals + [param_eta, param_v]))
+            grad = f_dual_grad(
+                *([rewards, feat_diff] + state_info_list + recurrent_vals + [param_eta, param_v]))
             eta_grad = np.float(grad[0])
             v_grad = grad[1]
             return np.hstack([eta_grad, v_grad])
@@ -306,7 +320,8 @@ class REPS(BatchPolopt, Serializable):
         def eval_loss_grad(params):
             self.policy.set_param_values(params, trainable=True)
             grad = f_loss_grad(*input)
-            flattened_grad = tensor_utils.flatten_tensors(list(map(np.asarray, grad)))
+            flattened_grad = tensor_utils.flatten_tensors(
+                list(map(np.asarray, grad)))
             return flattened_grad.astype(np.float64)
 
         loss_before = eval_loss(cur_params)

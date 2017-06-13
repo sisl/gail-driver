@@ -2,6 +2,7 @@ import rllab.misc.logger as logger
 from rllab import config
 import os.path as osp
 
+
 class RLLabRunner(object):
 
     def __init__(self, algo, args, exp_name):
@@ -35,4 +36,3 @@ class RLLabRunner(object):
 
     def train(self):
         self.algo.train()
-

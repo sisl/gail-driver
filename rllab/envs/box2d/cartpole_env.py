@@ -34,7 +34,7 @@ class CartpoleEnv(Box2DEnv, Serializable):
             self.max_pole_angle,
             self.max_pole_speed
         ])
-        low, high = -self.reset_range*bounds, self.reset_range*bounds
+        low, high = -self.reset_range * bounds, self.reset_range * bounds
         xpos, xvel, apos, avel = np.random.uniform(low, high)
         self.cart.position = (xpos, self.cart.position[1])
         self.cart.linearVelocity = (xvel, self.cart.linearVelocity[1])
@@ -46,7 +46,7 @@ class CartpoleEnv(Box2DEnv, Serializable):
     def compute_reward(self, action):
         yield
         notdone = 1 - int(self.is_current_done())
-        ucost = 1e-5*(action**2).sum()
+        ucost = 1e-5 * (action**2).sum()
         xcost = 1 - np.cos(self.pole.angle)
         yield notdone * 10 - notdone * xcost - notdone * ucost
 
@@ -54,4 +54,3 @@ class CartpoleEnv(Box2DEnv, Serializable):
     def is_current_done(self):
         return abs(self.cart.position[0]) > self.max_cart_pos or \
             abs(self.pole.angle) > self.max_pole_angle
-

@@ -122,4 +122,4 @@ class Bool(Type):
         return s.lower() == "true" or s.lower() == "1"
 
 
-Point2D = lambda: Tuple(Float(), Float())
+def Point2D(): return Tuple(Float(), Float())

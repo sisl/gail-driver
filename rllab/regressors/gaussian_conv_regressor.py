@@ -28,7 +28,7 @@ class GaussianConvRegressor(LasagnePowered, Serializable):
             input_shape,
             output_dim,
             hidden_sizes,
-            conv_filters,conv_filter_sizes,conv_strides,conv_pads,
+            conv_filters, conv_filter_sizes, conv_strides, conv_pads,
             hidden_nonlinearity=NL.rectify,
             mean_network=None,
 
@@ -42,7 +42,8 @@ class GaussianConvRegressor(LasagnePowered, Serializable):
             init_std=1.0,
             adaptive_std=False,
             std_share_network=False,
-            std_conv_filters=[],std_conv_filters_sizes=[],std_conv_strides=[],std_conv_pads=[],
+            std_conv_filters=[], std_conv_filters_sizes=[
+            ], std_conv_strides=[], std_conv_pads=[],
             std_hidden_sizes=(32, 32),
             std_nonlinearity=None,
             normalize_inputs=True,
@@ -66,7 +67,6 @@ class GaussianConvRegressor(LasagnePowered, Serializable):
         is False. It defaults to the same non-linearity as the mean.
         """
         Serializable.quick_init(self, locals())
-
 
         if optimizer is None:
             if use_trust_region:
@@ -124,14 +124,14 @@ class GaussianConvRegressor(LasagnePowered, Serializable):
         old_log_stds_var = TT.matrix("old_log_stds")
 
         x_mean_var = theano.shared(
-            np.zeros((1,np.prod(input_shape)), dtype=theano.config.floatX),
+            np.zeros((1, np.prod(input_shape)), dtype=theano.config.floatX),
             name="x_mean",
-            broadcastable=(True,False),
+            broadcastable=(True, False),
         )
         x_std_var = theano.shared(
-            np.ones((1,np.prod(input_shape)), dtype=theano.config.floatX),
+            np.ones((1, np.prod(input_shape)), dtype=theano.config.floatX),
             name="x_std",
-            broadcastable=(True,False),
+            broadcastable=(True, False),
         )
         y_mean_var = theano.shared(
             np.zeros((1, output_dim), dtype=theano.config.floatX),
@@ -210,7 +210,8 @@ class GaussianConvRegressor(LasagnePowered, Serializable):
 
         if self._subsample_factor < 1:
             num_samples_tot = xs.shape[0]
-            idx = np.random.randint(0, num_samples_tot, int(num_samples_tot * self._subsample_factor))
+            idx = np.random.randint(0, num_samples_tot, int(
+                num_samples_tot * self._subsample_factor))
             xs, ys = xs[idx], ys[idx]
 
         if self._normalize_inputs:
@@ -248,7 +249,8 @@ class GaussianConvRegressor(LasagnePowered, Serializable):
 
         logger.record_tabular(prefix + 'LossBefore', loss_before / batch_count)
         logger.record_tabular(prefix + 'LossAfter', loss_after / batch_count)
-        logger.record_tabular(prefix + 'dLoss', loss_before - loss_after / batch_count)
+        logger.record_tabular(
+            prefix + 'dLoss', loss_before - loss_after / batch_count)
         if self._use_trust_region:
             logger.record_tabular(prefix + 'MeanKL', mean_kl / batch_count)
 

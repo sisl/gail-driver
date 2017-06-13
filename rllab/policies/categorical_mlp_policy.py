@@ -12,6 +12,7 @@ from rllab.spaces import Discrete
 
 import numpy as np
 
+
 class CategoricalMLPPolicy(StochasticPolicy, LasagnePowered, Serializable):
     def __init__(
             self,
@@ -35,7 +36,8 @@ class CategoricalMLPPolicy(StochasticPolicy, LasagnePowered, Serializable):
 
         if prob_network is None:
             prob_network = MLP(
-                input_shape=(env_spec.observation_space.flat_dim * num_seq_inputs,),
+                input_shape=(
+                    env_spec.observation_space.flat_dim * num_seq_inputs,),
                 output_dim=env_spec.action_space.n,
                 hidden_sizes=hidden_sizes,
                 hidden_nonlinearity=hidden_nonlinearity,

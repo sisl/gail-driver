@@ -1,6 +1,5 @@
 
 
-
 import numpy as np
 from .base import Distribution
 import tensorflow as tf
@@ -42,7 +41,8 @@ class Categorical(Distribution):
         ndims = old_prob_var.get_shape().ndims
         # Assume layout is N * A
         return tf.reduce_sum(
-            old_prob_var * (tf.log(old_prob_var + TINY) - tf.log(new_prob_var + TINY)),
+            old_prob_var * (tf.log(old_prob_var + TINY) -
+                            tf.log(new_prob_var + TINY)),
             reduction_indices=ndims - 1
         )
 
@@ -100,7 +100,7 @@ class Categorical(Distribution):
 
     def sample(self, dist_info):
         samples = self._f_sample(dist_info["prob"])
-        import ipdb;
+        import ipdb
         ipdb.set_trace()
 
     def sample_sym(self, dist_info):

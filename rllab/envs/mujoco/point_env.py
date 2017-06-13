@@ -49,13 +49,12 @@ class PointEnv(MujocoEnv, Serializable):
     def action_from_key(self, key):
         lb, ub = self.action_bounds
         if key == glfw.KEY_LEFT:
-            return np.array([0, ub[0]*0.3])
+            return np.array([0, ub[0] * 0.3])
         elif key == glfw.KEY_RIGHT:
-            return np.array([0, lb[0]*0.3])
+            return np.array([0, lb[0] * 0.3])
         elif key == glfw.KEY_UP:
             return np.array([ub[1], 0])
         elif key == glfw.KEY_DOWN:
             return np.array([lb[1], 0])
         else:
             return np.array([0, 0])
-

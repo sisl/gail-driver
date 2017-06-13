@@ -15,7 +15,7 @@ class DoublePendulumEnv(Box2DEnv, Serializable):
         # make sure mdp-level step is 100ms long
         kwargs["frame_skip"] = kwargs.get("frame_skip", 2)
         if kwargs.get("template_args", {}).get("noise", False):
-            self.link_len = (np.random.rand()-0.5) + 1
+            self.link_len = (np.random.rand() - 0.5) + 1
         else:
             self.link_len = 1
         kwargs["template_args"] = kwargs.get("template_args", {})
@@ -44,8 +44,8 @@ class DoublePendulumEnv(Box2DEnv, Serializable):
         cur_center_pos = self.link2.position
         cur_angle = self.link2.angle
         cur_pos = (
-            cur_center_pos[0] - self.link_len*np.sin(cur_angle),
-            cur_center_pos[1] - self.link_len*np.cos(cur_angle)
+            cur_center_pos[0] - self.link_len * np.sin(cur_angle),
+            cur_center_pos[1] - self.link_len * np.cos(cur_angle)
         )
         return cur_pos
 
@@ -59,4 +59,3 @@ class DoublePendulumEnv(Box2DEnv, Serializable):
 
     def is_current_done(self):
         return False
-

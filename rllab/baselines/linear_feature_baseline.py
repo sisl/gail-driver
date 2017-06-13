@@ -2,6 +2,7 @@ from rllab.baselines.base import Baseline
 from rllab.misc.overrides import overrides
 import numpy as np
 
+
 class LinearFeatureBaseline(Baseline):
     def __init__(self, env_spec, reg_coeff=1e-5):
         self._coeffs = None
@@ -28,7 +29,8 @@ class LinearFeatureBaseline(Baseline):
         reg_coeff = self._reg_coeff
         for _ in range(5):
             self._coeffs = np.linalg.lstsq(
-                featmat.T.dot(featmat) + reg_coeff * np.identity(featmat.shape[1]),
+                featmat.T.dot(featmat) + reg_coeff *
+                np.identity(featmat.shape[1]),
                 featmat.T.dot(returns)
             )[0]
             if not np.any(np.isnan(self._coeffs)):

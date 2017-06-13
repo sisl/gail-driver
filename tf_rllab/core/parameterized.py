@@ -10,6 +10,7 @@ import os
 
 load_params = True
 
+
 @contextmanager
 def suppress_params_loading():
     global load_params
@@ -48,7 +49,8 @@ class Parameterized(object):
         if tag_tuple not in self._cached_param_dtypes:
             params = self.get_params(**tags)
             param_values = tf.get_default_session().run(params)
-            self._cached_param_dtypes[tag_tuple] = [val.dtype for val in param_values]
+            self._cached_param_dtypes[tag_tuple] = [
+                val.dtype for val in param_values]
         return self._cached_param_dtypes[tag_tuple]
 
     def get_param_shapes(self, **tags):
@@ -56,7 +58,8 @@ class Parameterized(object):
         if tag_tuple not in self._cached_param_shapes:
             params = self.get_params(**tags)
             param_values = tf.get_default_session().run(params)
-            self._cached_param_shapes[tag_tuple] = [val.shape for val in param_values]
+            self._cached_param_shapes[tag_tuple] = [
+                val.shape for val in param_values]
         return self._cached_param_shapes[tag_tuple]
 
     def get_param_values(self, **tags):
@@ -75,12 +78,14 @@ class Parameterized(object):
                 self.get_param_dtypes(**tags),
                 param_values):
             if param not in self._cached_assign_ops:
-                assign_placeholder = tf.placeholder(dtype=param.dtype.base_dtype)
+                assign_placeholder = tf.placeholder(
+                    dtype=param.dtype.base_dtype)
                 assign_op = tf.assign(param, assign_placeholder)
                 self._cached_assign_ops[param] = assign_op
                 self._cached_assign_placeholders[param] = assign_placeholder
             ops.append(self._cached_assign_ops[param])
-            feed_dict[self._cached_assign_placeholders[param]] = value.astype(dtype)
+            feed_dict[self._cached_assign_placeholders[param]
+                      ] = value.astype(dtype)
             if debug:
                 print("setting value of %s" % param.name)
         tf.get_default_session().run(ops, feed_dict=feed_dict)
@@ -109,7 +114,8 @@ class JointParameterized(Parameterized):
         self.components = components
 
     def get_params_internal(self, **tags):
-        params = [param for comp in self.components for param in comp.get_params_internal(**tags)]
+        params = [
+            param for comp in self.components for param in comp.get_params_internal(**tags)]
         # only return unique parameters
         return sorted(set(params), key=hash)
 
@@ -127,7 +133,7 @@ class Model(Parameterized):
         filename = log_dir + "/" + filename + '.h5'
         assignments = []
 
-        with h5py.File(filename,'r') as hf:
+        with h5py.File(filename, 'r') as hf:
             if itr >= 0:
                 prefix = self._prefix(itr)
             else:
@@ -141,14 +147,13 @@ class Model(Parameterized):
                 if path in hf:
                     assignments.append(
                         param.assign(hf[path][...])
-                        )
+                    )
 
         sess = tf.get_default_session()
         sess.run(assignments)
         print 'done.'
 
-
-    def save_params(self, itr, overwrite= False):
+    def save_params(self, itr, overwrite=False):
         print 'saving model...'
         if not hasattr(self, 'log_dir'):
             log_dir = Model._log_dir
@@ -180,10 +185,10 @@ class Model(Parameterized):
         filename = log_dir + "/" + self.save_name + '.h5'
         sess = tf.get_default_session()
 
-	assert len(names) == len(data)
+        assert len(names) == len(data)
         with h5py.File(filename, 'a') as hf:
-	     for name, d in zip(names,data):
-		hf.create_dataset(name,data=d)
+            for name, d in zip(names, data):
+                hf.create_dataset(name, data=d)
 
         print 'done.'
 

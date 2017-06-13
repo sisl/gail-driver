@@ -98,7 +98,8 @@ def to_onehot_sym(inds, dim):
 def pad_tensor(x, max_len):
     return np.concatenate([
         x,
-        np.tile(np.zeros_like(x[0]), (max_len - len(x),) + (1,) * np.ndim(x[0]))
+        np.tile(np.zeros_like(x[0]), (max_len -
+                                      len(x),) + (1,) * np.ndim(x[0]))
     ])
 
 

@@ -72,8 +72,10 @@ class PenaltyLbfgsOptimizer(Serializable):
             ]
 
         self._opt_fun = ext.lazydict(
-            f_loss=lambda: tensor_utils.compile_function(inputs, loss, log_name="f_loss"),
-            f_constraint=lambda: tensor_utils.compile_function(inputs, constraint_term, log_name="f_constraint"),
+            f_loss=lambda: tensor_utils.compile_function(
+                inputs, loss, log_name="f_loss"),
+            f_constraint=lambda: tensor_utils.compile_function(
+                inputs, constraint_term, log_name="f_constraint"),
             f_penalized_loss=lambda: tensor_utils.compile_function(
                 inputs=inputs + [penalty_var],
                 outputs=[penalized_loss, loss, constraint_term],
@@ -109,7 +111,8 @@ class PenaltyLbfgsOptimizer(Serializable):
 
             return f
 
-        cur_params = self._target.get_param_values(trainable=True).astype('float64')
+        cur_params = self._target.get_param_values(
+            trainable=True).astype('float64')
         opt_params = cur_params
 
         for penalty_itr in range(self._max_penalty_itr):
@@ -120,7 +123,8 @@ class PenaltyLbfgsOptimizer(Serializable):
                 maxiter=self._max_opt_itr
             )
 
-            _, try_loss, try_constraint_val = f_penalized_loss(*(inputs + (try_penalty,)))
+            _, try_loss, try_constraint_val = f_penalized_loss(
+                *(inputs + (try_penalty,)))
 
             logger.log('penalty %f => loss %f, %s %f' %
                        (try_penalty, try_loss, self._constraint_name, try_constraint_val))
@@ -134,9 +138,11 @@ class PenaltyLbfgsOptimizer(Serializable):
             if not self._adapt_penalty:
                 break
 
-            # Decide scale factor on the first iteration, or if constraint violation yields numerical error
+            # Decide scale factor on the first iteration, or if constraint
+            # violation yields numerical error
             if penalty_scale_factor is None or np.isnan(try_constraint_val):
-                # Increase penalty if constraint violated, or if constraint term is NAN
+                # Increase penalty if constraint violated, or if constraint
+                # term is NAN
                 if try_constraint_val > self._max_constraint_val or np.isnan(try_constraint_val):
                     penalty_scale_factor = self._increase_penalty_factor
                 else:
@@ -145,13 +151,14 @@ class PenaltyLbfgsOptimizer(Serializable):
                     opt_params = itr_opt_params
             else:
                 if penalty_scale_factor > 1 and \
-                                try_constraint_val <= self._max_constraint_val:
+                        try_constraint_val <= self._max_constraint_val:
                     break
                 elif penalty_scale_factor < 1 and \
-                                try_constraint_val >= self._max_constraint_val:
+                        try_constraint_val >= self._max_constraint_val:
                     break
             try_penalty *= penalty_scale_factor
-            try_penalty = np.clip(try_penalty, self._min_penalty, self._max_penalty)
+            try_penalty = np.clip(
+                try_penalty, self._min_penalty, self._max_penalty)
             self._penalty = try_penalty
 
         self._target.set_param_values(opt_params, trainable=True)

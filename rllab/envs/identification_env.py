@@ -23,4 +23,3 @@ class IdentificationEnv(ProxyEnv, Serializable):
                 self._wrapped_env.release()
         self._wrapped_env = self.gen_mdp()
         return super(IdentificationEnv, self).reset()
-

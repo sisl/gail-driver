@@ -86,7 +86,8 @@ class CategoricalMLPRegressor(LasagnePowered, Serializable):
 
         normalized_xs_var = (xs_var - x_mean_var) / x_std_var
 
-        prob_var = L.get_output(l_prob, {prob_network.input_layer: normalized_xs_var})
+        prob_var = L.get_output(
+            l_prob, {prob_network.input_layer: normalized_xs_var})
 
         old_info_vars = dict(prob=old_prob_var)
         info_vars = dict(prob=prob_var)
@@ -97,7 +98,8 @@ class CategoricalMLPRegressor(LasagnePowered, Serializable):
 
         loss = - TT.mean(dist.log_likelihood_sym(ys_var, info_vars))
 
-        predicted = special.to_onehot_sym(TT.argmax(prob_var, axis=1), output_dim)
+        predicted = special.to_onehot_sym(
+            TT.argmax(prob_var, axis=1), output_dim)
 
         self._f_predict = ext.compile_function([xs_var], predicted)
         self._f_prob = ext.compile_function([xs_var], prob_var)
@@ -155,7 +157,8 @@ class CategoricalMLPRegressor(LasagnePowered, Serializable):
 
     def log_likelihood_sym(self, x_var, y_var):
         normalized_xs_var = (x_var - self._x_mean_var) / self._x_std_var
-        prob = L.get_output(self._l_prob, {self._prob_network.input_layer: normalized_xs_var})
+        prob = L.get_output(
+            self._l_prob, {self._prob_network.input_layer: normalized_xs_var})
         return self._dist.log_likelihood_sym(TT.cast(y_var, 'int32'), dict(prob=prob))
 
     def get_param_values(self, **tags):

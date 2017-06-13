@@ -53,7 +53,8 @@ def line_intersect(pt1, pt2, ptA, ptB):
     #
     DET = (-dx1 * dy + dy1 * dx)
 
-    if math.fabs(DET) < DET_TOLERANCE: return (0, 0, 0, 0, 0)
+    if math.fabs(DET) < DET_TOLERANCE:
+        return (0, 0, 0, 0, 0)
 
     # now, the determinant should be OK
     DETinv = 1.0 / DET

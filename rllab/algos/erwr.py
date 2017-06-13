@@ -32,4 +32,3 @@ class ERWR(VPG, Serializable):
             positive_adv=True if positive_adv is None else positive_adv,
             **kwargs
         )
-

@@ -1,9 +1,5 @@
 
 
-
-
-
-
 import numpy as np
 
 import tensorflow as tf
@@ -70,7 +66,8 @@ class DeterministicMLPRegressor(LayersPowered, Serializable):
             LayersPowered.__init__(self, [l_out])
 
             xs_var = network.input_layer.input_var
-            ys_var = tf.placeholder(dtype=tf.float32, shape=[None, output_dim], name="ys")
+            ys_var = tf.placeholder(dtype=tf.float32, shape=[
+                                    None, output_dim], name="ys")
 
             x_mean_var = tf.get_variable(
                 name="x_mean",
@@ -85,11 +82,13 @@ class DeterministicMLPRegressor(LayersPowered, Serializable):
 
             normalized_xs_var = (xs_var - x_mean_var) / x_std_var
 
-            fit_ys_var = L.get_output(l_out, {network.input_layer: normalized_xs_var})
+            fit_ys_var = L.get_output(
+                l_out, {network.input_layer: normalized_xs_var})
 
             loss = - tf.reduce_mean(tf.square(fit_ys_var - ys_var))
 
-            self.f_predict = tensor_utils.compile_function([xs_var], fit_ys_var)
+            self.f_predict = tensor_utils.compile_function(
+                [xs_var], fit_ys_var)
 
             optimizer_args = dict(
                 loss=loss,

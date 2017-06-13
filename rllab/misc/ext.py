@@ -257,10 +257,10 @@ def flatten_hessian(cost, wrt, consider_constant=None,
     hessians = []
     if not block_diagonal:
         expr = TT.concatenate([
-                                  grad(cost, input, consider_constant=consider_constant,
-                                       disconnected_inputs=disconnected_inputs).flatten()
-                                  for input in wrt
-                                  ])
+            grad(cost, input, consider_constant=consider_constant,
+                 disconnected_inputs=disconnected_inputs).flatten()
+            for input in wrt
+        ])
 
     for input in wrt:
         assert isinstance(input, Variable), \
@@ -280,8 +280,8 @@ def flatten_hessian(cost, wrt, consider_constant=None,
             x,
             consider_constant=consider_constant,
             disconnected_inputs='ignore').flatten(),
-                                    sequences=arange(expr.shape[0]),
-                                    non_sequences=[expr, input])
+            sequences=arange(expr.shape[0]),
+            non_sequences=[expr, input])
         assert not updates, \
             ("Scan has returned a list of updates. This should not "
              "happen! Report this to theano-users (also include the "
@@ -338,6 +338,8 @@ Assume:
 1. each of f's inputs is iterable and composed of multiple "samples"
 2. outputs can be averaged over "samples"
 """
+
+
 def sliced_fun(f, n_slices):
     def sliced_f(sliced_inputs, non_sliced_inputs=None):
         if non_sliced_inputs is None:

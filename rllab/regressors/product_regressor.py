@@ -1,6 +1,5 @@
 
 
-
 import numpy as np
 from rllab.core.serializable import Serializable
 
@@ -40,20 +39,21 @@ class ProductRegressor(Serializable):
 
     def predict_log_likelihood(self, xs, ys):
         return np.sum([
-                          regressor.predict_log_likelihood(xs, split_ys)
-                          for regressor, split_ys in zip(self.regressors, self._split_ys(ys))
-                          ], axis=0)
+            regressor.predict_log_likelihood(xs, split_ys)
+            for regressor, split_ys in zip(self.regressors, self._split_ys(ys))
+        ], axis=0)
 
     def get_param_values(self, **tags):
         return np.concatenate(
-            [regressor.get_param_values(**tags) for regressor in self.regressors]
+            [regressor.get_param_values(**tags)
+             for regressor in self.regressors]
         )
 
     def set_param_values(self, flattened_params, **tags):
         param_dims = [
             np.prod(regressor.get_param_shapes(**tags))
             for regressor in self.regressors
-            ]
+        ]
         split_ids = np.cumsum(param_dims)[:-1]
         for regressor, split_param_values in zip(self.regressors, np.split(flattened_params, split_ids)):
             regressor.set_param_values(split_param_values)

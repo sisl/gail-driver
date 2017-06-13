@@ -34,14 +34,16 @@ class LbfgsOptimizer(Serializable):
         self._target = target
 
         def get_opt_output():
-            flat_grad = tensor_utils.flatten_tensor_variables(tf.gradients(loss, target.get_params(trainable=True)))
+            flat_grad = tensor_utils.flatten_tensor_variables(
+                tf.gradients(loss, target.get_params(trainable=True)))
             return [tf.cast(loss, tf.float64), tf.cast(flat_grad, tf.float64)]
 
         if extra_inputs is None:
             extra_inputs = list()
 
         self._opt_fun = ext.lazydict(
-            f_loss=lambda: tensor_utils.compile_function(inputs + extra_inputs, loss),
+            f_loss=lambda: tensor_utils.compile_function(
+                inputs + extra_inputs, loss),
             f_opt=lambda: tensor_utils.compile_function(
                 inputs=inputs + extra_inputs,
                 outputs=get_opt_output(),
@@ -82,6 +84,7 @@ class LbfgsOptimizer(Serializable):
             opt_callback = None
 
         scipy.optimize.fmin_l_bfgs_b(
-            func=f_opt_wrapper, x0=self._target.get_param_values(trainable=True),
+            func=f_opt_wrapper, x0=self._target.get_param_values(
+                trainable=True),
             maxiter=self._max_opt_itr, callback=opt_callback,
         )

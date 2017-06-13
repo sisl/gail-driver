@@ -27,12 +27,14 @@ class PerlmutterHvp(object):
             if grad is None:
                 constraint_grads[idx] = tf.zeros_like(param)
 
-        xs = tuple([tensor_utils.new_tensor_like(p.name.split(":")[0], p) for p in params])
+        xs = tuple([tensor_utils.new_tensor_like(
+            p.name.split(":")[0], p) for p in params])
 
         def Hx_plain():
             Hx_plain_splits = tf.gradients(
                 tf.reduce_sum(
-                    tf.pack([tf.reduce_sum(g * x) for g, x in zip(constraint_grads, xs)])
+                    tf.pack([tf.reduce_sum(g * x)
+                             for g, x in zip(constraint_grads, xs)])
                 ),
                 params
             )
@@ -52,7 +54,8 @@ class PerlmutterHvp(object):
     def build_eval(self, inputs):
         def eval(x):
             xs = tuple(self.target.flat_to_params(x, trainable=True))
-            ret = sliced_fun(self.opt_fun["f_Hx_plain"], self._num_slices)(inputs, xs) + self.reg_coeff * x
+            ret = sliced_fun(self.opt_fun["f_Hx_plain"], self._num_slices)(
+                inputs, xs) + self.reg_coeff * x
             return ret
 
         return eval
@@ -83,12 +86,15 @@ class FiniteDifferenceHvp(object):
             xs = args[len(inputs):]
             flat_xs = np.concatenate([np.reshape(x, (-1,)) for x in xs])
             param_val = self.target.get_param_values(trainable=True)
-            eps = np.cast['float32'](self.base_eps / (np.linalg.norm(param_val) + 1e-8))
-            self.target.set_param_values(param_val + eps * flat_xs, trainable=True)
+            eps = np.cast['float32'](
+                self.base_eps / (np.linalg.norm(param_val) + 1e-8))
+            self.target.set_param_values(
+                param_val + eps * flat_xs, trainable=True)
             flat_grad_dvplus = self.opt_fun["f_grad"](*inputs_)
             self.target.set_param_values(param_val, trainable=True)
             if self.symmetric:
-                self.target.set_param_values(param_val - eps * flat_xs, trainable=True)
+                self.target.set_param_values(
+                    param_val - eps * flat_xs, trainable=True)
                 flat_grad_dvminus = self.opt_fun["f_grad"](*inputs_)
                 hx = (flat_grad_dvplus - flat_grad_dvminus) / (2 * eps)
                 self.target.set_param_values(param_val, trainable=True)
@@ -109,7 +115,8 @@ class FiniteDifferenceHvp(object):
     def build_eval(self, inputs):
         def eval(x):
             xs = tuple(self.target.flat_to_params(x, trainable=True))
-            ret = sliced_fun(self.opt_fun["f_Hx_plain"], self._num_slices)(inputs,xs) + self.reg_coeff * x
+            ret = sliced_fun(self.opt_fun["f_Hx_plain"], self._num_slices)(
+                inputs, xs) + self.reg_coeff * x
             return ret
 
         return eval
@@ -251,14 +258,17 @@ class ConjugateGradientOptimizer(Serializable):
         else:
             subsample_inputs = inputs
 
-        logger.log("Start CG optimization: #parameters: %d, #inputs: %d, #subsample_inputs: %d"%(len(prev_param),len(inputs[0]), len(subsample_inputs[0])))
+        logger.log("Start CG optimization: #parameters: %d, #inputs: %d, #subsample_inputs: %d" % (
+            len(prev_param), len(inputs[0]), len(subsample_inputs[0])))
 
         logger.log("computing loss before")
-        loss_before = sliced_fun(self._opt_fun["f_loss"], self._num_slices)(inputs, extra_inputs)
+        loss_before = sliced_fun(
+            self._opt_fun["f_loss"], self._num_slices)(inputs, extra_inputs)
         logger.log("performing update")
 
         logger.log("computing gradient")
-        flat_g = sliced_fun(self._opt_fun["f_grad"], self._num_slices)(inputs, extra_inputs)
+        flat_g = sliced_fun(self._opt_fun["f_grad"], self._num_slices)(
+            inputs, extra_inputs)
         logger.log("gradient computed")
 
         logger.log("computing descent direction")
@@ -267,7 +277,8 @@ class ConjugateGradientOptimizer(Serializable):
         descent_direction = krylov.cg(Hx, flat_g, cg_iters=self._cg_iters)
 
         initial_step_size = np.sqrt(
-            2.0 * self._max_constraint_val * (1. / (descent_direction.dot(Hx(descent_direction)) + 1e-8))
+            2.0 * self._max_constraint_val *
+            (1. / (descent_direction.dot(Hx(descent_direction)) + 1e-8))
         )
         if np.isnan(initial_step_size):
             initial_step_size = 1.
@@ -283,21 +294,23 @@ class ConjugateGradientOptimizer(Serializable):
             loss, constraint_val = sliced_fun(self._opt_fun["f_loss_constraint"], self._num_slices)(inputs,
                                                                                                     extra_inputs)
             if self._debug_nan and np.isnan(constraint_val):
-                import ipdb;
+                import ipdb
                 ipdb.set_trace()
             if loss < loss_before and constraint_val <= self._max_constraint_val:
                 break
         if (np.isnan(loss) or np.isnan(constraint_val) or loss >= loss_before or constraint_val >=
-            self._max_constraint_val) and not self._accept_violation:
+                self._max_constraint_val) and not self._accept_violation:
             logger.log("Line search condition violated. Rejecting the step!")
             if np.isnan(loss):
                 logger.log("Violated because loss is NaN")
             if np.isnan(constraint_val):
-                logger.log("Violated because constraint %s is NaN" % self._constraint_name)
+                logger.log("Violated because constraint %s is NaN" %
+                           self._constraint_name)
             if loss >= loss_before:
                 logger.log("Violated because loss not improving")
             if constraint_val >= self._max_constraint_val:
-                logger.log("Violated because constraint %s is violated" % self._constraint_name)
+                logger.log("Violated because constraint %s is violated" %
+                           self._constraint_name)
             self._target.set_param_values(prev_param, trainable=True)
         logger.log("backtrack iters: %d" % n_iter)
         logger.log("computing loss after")

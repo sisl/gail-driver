@@ -113,4 +113,3 @@ class CarParkingEnv(Box2DEnv, Serializable):
         if keys[pygame.K_DOWN]:
             go[0] = -10
         return go
-

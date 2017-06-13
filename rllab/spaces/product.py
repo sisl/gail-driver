@@ -10,7 +10,8 @@ class Product(Space):
             assert len(components) == 1
             components = components[0]
         self._components = tuple(components)
-        dtypes = [c.new_tensor_variable("tmp", extra_dims=0).dtype for c in components]
+        dtypes = [c.new_tensor_variable(
+            "tmp", extra_dims=0).dtype for c in components]
         if len(dtypes) > 0 and hasattr(dtypes[0], "as_numpy_dtype"):
             dtypes = [d.as_numpy_dtype for d in dtypes]
         self._common_dtype = np.core.numerictypes.find_common_type([], dtypes)
@@ -28,7 +29,7 @@ class Product(Space):
     def new_tensor_variable(self, name, extra_dims):
         return ext.new_tensor(
             name=name,
-            ndim=extra_dims+1,
+            ndim=extra_dims + 1,
             dtype=self._common_dtype,
         )
 
@@ -41,7 +42,8 @@ class Product(Space):
 
     def flatten_n(self, xs):
         xs_regrouped = [[x[i] for x in xs] for i in range(len(xs[0]))]
-        flat_regrouped = [c.flatten_n(xi) for c, xi in zip(self.components, xs_regrouped)]
+        flat_regrouped = [c.flatten_n(xi) for c, xi in zip(
+            self.components, xs_regrouped)]
         return np.concatenate(flat_regrouped, axis=-1)
 
     def unflatten(self, x):
@@ -52,7 +54,8 @@ class Product(Space):
     def unflatten_n(self, xs):
         dims = [c.flat_dim for c in self._components]
         flat_xs = np.split(xs, np.cumsum(dims)[:-1], axis=-1)
-        unflat_xs = [c.unflatten_n(xi) for c, xi in zip(self.components, flat_xs)]
+        unflat_xs = [c.unflatten_n(xi)
+                     for c, xi in zip(self.components, flat_xs)]
         unflat_xs_grouped = list(zip(*unflat_xs))
         return unflat_xs_grouped
 

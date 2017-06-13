@@ -61,7 +61,8 @@ class CategoricalGRUPolicy(StochasticPolicy, LasagnePowered, Serializable):
                     flat_feature,
                     [input.shape[0], input.shape[1], feature_dim]
                 ),
-                shape_op=lambda _, input_shape: (input_shape[0], input_shape[1], feature_dim)
+                shape_op=lambda _, input_shape: (
+                    input_shape[0], input_shape[1], feature_dim)
             )
 
         prob_network = GRUNetwork(
@@ -83,7 +84,8 @@ class CategoricalGRUPolicy(StochasticPolicy, LasagnePowered, Serializable):
         if feature_network is None:
             feature_var = flat_input_var
         else:
-            feature_var = L.get_output(l_flat_feature, {feature_network.input_layer: flat_input_var})
+            feature_var = L.get_output(
+                l_flat_feature, {feature_network.input_layer: flat_input_var})
 
         self.f_step_prob = ext.compile_function(
             [
@@ -135,7 +137,8 @@ class CategoricalGRUPolicy(StochasticPolicy, LasagnePowered, Serializable):
             return dict(
                 prob=L.get_output(
                     self.prob_network.output_layer,
-                    {self.l_input: all_input_var, self.feature_network.input_layer: flat_input_var}
+                    {self.l_input: all_input_var,
+                        self.feature_network.input_layer: flat_input_var}
                 )
             )
 
@@ -162,7 +165,8 @@ class CategoricalGRUPolicy(StochasticPolicy, LasagnePowered, Serializable):
             all_input = self.observation_space.flatten(observation)
             # should not be used
             prev_action = np.nan
-        probs, hidden_vec = [x[0] for x in self.f_step_prob([all_input], [self.prev_hidden])]
+        probs, hidden_vec = [x[0] for x in self.f_step_prob(
+            [all_input], [self.prev_hidden])]
         action = special.weighted_sample(probs, range(self.action_space.n))
         self.prev_action = action
         self.prev_hidden = hidden_vec

@@ -55,7 +55,8 @@ class StubBase(object):
         return StubMethodCall(self, "__div__", [other], dict())
 
     def __rdiv__(self, other):
-        return StubMethodCall(BinaryOp(), "rdiv", [self, other], dict())  # self, "__rdiv__", [other], dict())
+        # self, "__rdiv__", [other], dict())
+        return StubMethodCall(BinaryOp(), "rdiv", [self, other], dict())
 
     def __rpow__(self, power, modulo=None):
         return StubMethodCall(self, "__rpow__", [power, modulo], dict())
@@ -155,7 +156,8 @@ class StubObject(StubBase):
         # checks bypassed to allow for accesing instance fileds
         if hasattr(self.proxy_class, item):
             return StubAttr(self, item)
-        raise AttributeError('Cannot get attribute %s from %s' % (item, self.proxy_class))
+        raise AttributeError('Cannot get attribute %s from %s' %
+                             (item, self.proxy_class))
 
     def __str__(self):
         return "StubObject(%s, *%s, **%s)" % (str(self.proxy_class), str(self.args), str(self.kwargs))
@@ -417,12 +419,13 @@ def run_experiment_lite(
                 exp_prefix, timestamp, exp_count)
         if task.get("log_dir", None) is None:
             task["log_dir"] = config.LOG_DIR + "/local/" + \
-                              exp_prefix.replace("_", "-") + "/" + task["exp_name"]
+                exp_prefix.replace("_", "-") + "/" + task["exp_name"]
         if task.get("variant", None) is not None:
             variant = task.pop("variant")
             if "exp_name" not in variant:
                 variant["exp_name"] = task["exp_name"]
-            task["variant_data"] = base64.b64encode(pickle.dumps(variant)).decode("utf-8")
+            task["variant_data"] = base64.b64encode(
+                pickle.dumps(variant)).decode("utf-8")
         elif "variant" in task:
             del task["variant"]
         task["remote_log_dir"] = osp.join(
@@ -854,7 +857,8 @@ def launch_ec2(params_list, exp_prefix, docker_image, code_full_path,
     print(instance_args["UserData"])
     print("************************************************************")
     if aws_config["spot"]:
-        instance_args["UserData"] = base64.b64encode(instance_args["UserData"].encode()).decode("utf-8")
+        instance_args["UserData"] = base64.b64encode(
+            instance_args["UserData"].encode()).decode("utf-8")
         spot_args = dict(
             DryRun=dry,
             InstanceCount=1,
@@ -874,7 +878,8 @@ def launch_ec2(params_list, exp_prefix, docker_image, code_full_path,
                     ec2.create_tags(
                         Resources=[spot_request_id],
                         Tags=[
-                            {'Key': 'Name', 'Value': params_list[0]["exp_name"]}
+                            {'Key': 'Name',
+                                'Value': params_list[0]["exp_name"]}
                         ],
                     )
                     break
@@ -908,7 +913,8 @@ def s3_sync_code(config, dry=False):
             current_commit = None
 
         file_name = str(timestamp) + "_" + hashlib.sha224(
-            subprocess.check_output(["pwd"]) + str(current_commit).encode() + str(timestamp).encode()
+            subprocess.check_output(
+                ["pwd"]) + str(current_commit).encode() + str(timestamp).encode()
         ).hexdigest() + ".tar.gz"
 
         file_path = "/tmp/" + file_name
@@ -940,7 +946,8 @@ def s3_sync_code(config, dry=False):
         except subprocess.CalledProcessError as _:
             print("Warning: failed to execute git commands")
             has_git = False
-        dir_hash = base64.b64encode(subprocess.check_output(["pwd"])).decode("utf-8")
+        dir_hash = base64.b64encode(
+            subprocess.check_output(["pwd"])).decode("utf-8")
         code_path = "%s_%s" % (
             dir_hash,
             (current_commit if clean_state else "%s_dirty_%s" % (current_commit, timestamp)) if
@@ -949,14 +956,14 @@ def s3_sync_code(config, dry=False):
         full_path = "%s/%s" % (base, code_path)
         cache_path = "%s/%s" % (base, dir_hash)
         cache_cmds = ["aws", "s3", "cp", "--recursive"] + \
-                     flatten(["--exclude", "%s" % pattern] for pattern in config.CODE_SYNC_IGNORES) + \
-                     [cache_path, full_path]
+            flatten(["--exclude", "%s" % pattern] for pattern in config.CODE_SYNC_IGNORES) + \
+            [cache_path, full_path]
         cmds = ["aws", "s3", "cp", "--recursive"] + \
-               flatten(["--exclude", "%s" % pattern] for pattern in config.CODE_SYNC_IGNORES) + \
+            flatten(["--exclude", "%s" % pattern] for pattern in config.CODE_SYNC_IGNORES) + \
                [".", full_path]
         caching_cmds = ["aws", "s3", "cp", "--recursive"] + \
-                       flatten(["--exclude", "%s" % pattern] for pattern in config.CODE_SYNC_IGNORES) + \
-                       [full_path, cache_path]
+            flatten(["--exclude", "%s" % pattern] for pattern in config.CODE_SYNC_IGNORES) + \
+            [full_path, cache_path]
         mujoco_key_cmd = [
             "aws", "s3", "sync", config.MUJOCO_KEY_PATH, "{}/.mujoco/".format(base)]
         print(cache_cmds, cmds, caching_cmds, mujoco_key_cmd)
@@ -1012,7 +1019,7 @@ def to_lab_kube_pod(
     kube_env = [
         {"name": k, "value": v}
         for k, v in (params.pop("env", None) or dict()).items()
-        ]
+    ]
     mkdir_p(log_dir)
     pre_commands = list()
     pre_commands.append('mkdir -p ~/.aws')
@@ -1028,9 +1035,11 @@ def to_lab_kube_pod(
         'aws s3 cp --recursive {} {}'.format(s3_mujoco_key_path, '~/.mujoco'))
 
     if config.FAST_CODE_SYNC:
-        pre_commands.append('aws s3 cp %s /tmp/rllab_code.tar.gz' % code_full_path)
+        pre_commands.append(
+            'aws s3 cp %s /tmp/rllab_code.tar.gz' % code_full_path)
         pre_commands.append('mkdir -p %s' % config.DOCKER_CODE_DIR)
-        pre_commands.append('tar -zxvf /tmp/rllab_code.tar.gz -C %s' % config.DOCKER_CODE_DIR)
+        pre_commands.append(
+            'tar -zxvf /tmp/rllab_code.tar.gz -C %s' % config.DOCKER_CODE_DIR)
     else:
         pre_commands.append('aws s3 cp --recursive %s %s' %
                             (code_full_path, config.DOCKER_CODE_DIR))
@@ -1088,7 +1097,8 @@ def to_lab_kube_pod(
     command_list.append("echo \"Running in docker\"")
     command_list.append(
         "%s 2>&1 | tee -a %s" % (
-            to_local_command(params, python_command=python_command, script=script),
+            to_local_command(
+                params, python_command=python_command, script=script),
             "%s/stdouterr.log" % log_dir
         )
     )

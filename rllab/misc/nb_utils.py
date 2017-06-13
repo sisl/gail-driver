@@ -107,7 +107,8 @@ class ExperimentDatabase(object):
                     params["exp_name"] = osp.basename(f)
                     if os.path.isfile(osp.join(f, "params.pkl")):
                         pkl_data = joblib.load(osp.join(f, "params.pkl"))
-                        experiments.append(Experiment(progress, params, pkl_data))
+                        experiments.append(Experiment(
+                            progress, params, pkl_data))
                     else:
                         experiments.append(Experiment(progress, params))
                 except Exception as e:

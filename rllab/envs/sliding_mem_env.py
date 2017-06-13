@@ -53,4 +53,3 @@ class SlidingMemEnv(ProxyEnv, Serializable):
         next_obs, reward, done, info = self._wrapped_env.step(action)
         self.add_to_buffer(next_obs)
         return Step(self.buffer, reward, done, **info)
-

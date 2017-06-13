@@ -177,8 +177,9 @@ class XmlFixture(XmlElem):
                 attrs["pos"] = self.center
             m = 100
             vs = [
-                (0.5/m*i*self.width, self.height*np.sin((1./m*i-0.5)*np.pi))
-                for i in range(-m, m+1)
+                (0.5 / m * i * self.width, self.height *
+                 np.sin((1. / m * i - 0.5) * np.pi))
+                for i in range(-m, m + 1)
             ]
             attrs["vertices_chain"] = vs
             fixture = body.CreateChainFixture(**attrs)
@@ -220,7 +221,8 @@ class XmlJoint(XmlElem):
         axis = XmlAttr("axis", Tuple(Float(), Float()))
         limit = XmlAttr("limit", Tuple(Angle(), Angle()))
         ctrllimit = XmlAttr("ctrllimit", Tuple(Angle(), Angle()))
-        typ = XmlAttr("type", Choice("revolute", "friction", "prismatic"), required=True)
+        typ = XmlAttr("type", Choice(
+            "revolute", "friction", "prismatic"), required=True)
         name = XmlAttr("name", String())
         motor = XmlAttr("motor", Bool())
 

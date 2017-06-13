@@ -23,7 +23,8 @@ class RecurrentCategorical(Distribution):
         new_prob_var = new_dist_info_vars["prob"]
         # Assume layout is N * T * A
         return tf.reduce_sum(
-            old_prob_var * (tf.log(old_prob_var + TINY) - tf.log(new_prob_var + TINY)),
+            old_prob_var * (tf.log(old_prob_var + TINY) -
+                            tf.log(new_prob_var + TINY)),
             reduction_indices=2
         )
 
@@ -82,4 +83,3 @@ class RecurrentCategorical(Distribution):
     @property
     def dist_info_specs(self):
         return [("prob", (self.dim,))]
-

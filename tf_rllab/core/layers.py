@@ -21,7 +21,7 @@ class G(object):
 G._n_layers = 0
 
 
-def create_param(spec, shape, name, trainable=True, regularizable=True, regularizer= None):
+def create_param(spec, shape, name, trainable=True, regularizable=True, regularizer=None):
     if not hasattr(spec, '__call__'):
         assert isinstance(spec, (tf.Tensor, tf.Variable))
         return spec
@@ -31,7 +31,7 @@ def create_param(spec, shape, name, trainable=True, regularizable=True, regulari
         regularizer = regularizer
     else:
         # do not regularize this variable
-        regularizer = lambda _: tf.constant(0.)
+        def regularizer(_): return tf.constant(0.)
     return tf.get_variable(
         name=name, shape=shape, initializer=spec, trainable=trainable,
         regularizer=regularizer, dtype=tf.float32
@@ -133,9 +133,9 @@ class Layer(object):
 
         if any(d is not None and d <= 0 for d in self.input_shape):
             raise ValueError((
-                                 "Cannot create Layer with a non-positive input_shape "
-                                 "dimension. input_shape=%r, self.name=%r") % (
-                                 self.input_shape, self.name))
+                "Cannot create Layer with a non-positive input_shape "
+                "dimension. input_shape=%r, self.name=%r") % (
+                self.input_shape, self.name))
 
     @property
     def penalize_complexity(self):
@@ -163,20 +163,25 @@ class Layer(object):
             tags['trainable'] = tags.get('trainable', True)
             tags['regularizable'] = tags.get('regularizable', True)
             param = create_param(spec, shape, name, **tags)
-            self.params[param] = set(tag for tag, value in list(tags.items()) if value)
+            self.params[param] = set(
+                tag for tag, value in list(tags.items()) if value)
             return param
 
     def add_param(self, spec, shape, name, **kwargs):
         param = self.add_param_plain(spec, shape, name, **kwargs)
         if name is not None and name.startswith("W") and self.weight_normalization:
-            # Hacky: check if the parameter is a weight matrix. If so, apply weight normalization
+            # Hacky: check if the parameter is a weight matrix. If so, apply
+            # weight normalization
             if len(param.get_shape()) == 2:
                 v = param
-                g = self.add_param_plain(tf.ones_initializer, (shape[1],), name=name + "_wn/g")
-                param = v * (tf.reshape(g, (1, -1)) / tf.sqrt(tf.reduce_sum(tf.square(v), 0, keep_dims=True)))
+                g = self.add_param_plain(
+                    tf.ones_initializer, (shape[1],), name=name + "_wn/g")
+                param = v * (tf.reshape(g, (1, -1)) /
+                             tf.sqrt(tf.reduce_sum(tf.square(v), 0, keep_dims=True)))
             elif len(param.get_shape()) == 4:
                 v = param
-                g = self.add_param_plain(tf.ones_initializer, (shape[3],), name=name + "_wn/g")
+                g = self.add_param_plain(
+                    tf.ones_initializer, (shape[3],), name=name + "_wn/g")
                 param = v * (tf.reshape(g, (1, 1, 1, -1)) / tf.sqrt(tf.reduce_sum(tf.square(v), [0, 1, 2],
                                                                                   keep_dims=True)))
             else:
@@ -208,9 +213,11 @@ class InputLayer(Layer):
         if input_var is None:
             if self.name is not None:
                 with tf.variable_scope(self.name):
-                    input_var = tf.placeholder(tf.float32, shape=shape, name="input")
+                    input_var = tf.placeholder(
+                        tf.float32, shape=shape, name="input")
             else:
-                input_var = tf.placeholder(tf.float32, shape=shape, name="input")
+                input_var = tf.placeholder(
+                    tf.float32, shape=shape, name="input")
         self.input_var = input_var
 
     @Layer.output_shape.getter
@@ -356,7 +363,8 @@ class ParamLayer(Layer):
 
     def get_output_for(self, input, **kwargs):
         ndim = input.get_shape().ndims
-        reshaped_param = tf.reshape(self.param, (1,) * (ndim - 1) + (self.num_units,))
+        reshaped_param = tf.reshape(
+            self.param, (1,) * (ndim - 1) + (self.num_units,))
         tile_arg = tf.concat(0, [tf.shape(input)[:ndim - 1], [1]])
         tiled = tf.tile(reshaped_param, tile_arg)
         return tiled
@@ -382,7 +390,7 @@ class OpLayer(MergeLayer):
 
 class BayesLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
-                 reg_params= {},
+                 reg_params={},
                  **kwargs):
         """
         Warning: Think carefully about the 'regularizable' keyword.
@@ -394,18 +402,23 @@ class BayesLayer(Layer):
 
         num_inputs = int(np.prod(self.input_shape[1:]))
 
-        self.bayesreg = BayesRegularizer(num_inputs, num_units, hyperparams= reg_params)
+        self.bayesreg = BayesRegularizer(
+            num_inputs, num_units, hyperparams=reg_params)
 
-        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= self.bayesreg.weight_kl)
+        self.W_theta = self.add_param(
+            W, (num_inputs, num_units * 2), name="W_theta", regularizer=self.bayesreg.weight_kl)
 
         self.W_mu, self.W_rho = tf.split(1, 2, self.W_theta, name='mu_and_rho')
 
-        self.W = self.W_mu + tf.log(1.0 + tf.exp(self.W_rho)) * tf.random_normal(self.W_mu.get_shape())
+        self.W = self.W_mu + \
+            tf.log(1.0 + tf.exp(self.W_rho)) * \
+            tf.random_normal(self.W_mu.get_shape())
 
         if b is None:
             self.b = None
         else:
-            self.b = self.add_param(b, (num_units,), name="b", regularizable=False)
+            self.b = self.add_param(
+                b, (num_units,), name="b", regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -435,7 +448,7 @@ class BayesLayer(Layer):
 
 class LatentLayer(Layer):
     def __init__(self, incoming, num_units, nonlinearity=None, W=XavierUniformInitializer(), b=tf.zeros_initializer,
-                 reg_params= {},
+                 reg_params={},
                  **kwargs):
         super(LatentLayer, self).__init__(incoming, **kwargs)
         self.nonlinearity = tf.identity if nonlinearity is None else nonlinearity
@@ -446,19 +459,23 @@ class LatentLayer(Layer):
 
         num_inputs = int(np.prod(self.input_shape[1:]))
 
-        self.bayesreg = BayesRegularizer(num_inputs, num_units, hyperparams= reg_params)
+        self.bayesreg = BayesRegularizer(
+            num_inputs, num_units, hyperparams=reg_params)
 
-        self.W_theta = self.add_param(W, (num_inputs, num_units * 2), name= "W_theta", regularizer= None)
+        self.W_theta = self.add_param(
+            W, (num_inputs, num_units * 2), name="W_theta", regularizer=None)
 
         W_mu, W_rho = tf.split(1, 2, self.W_theta)
-        self.W_mu = tf.identity(W_mu, name= "W_mu")
-        self.W_rho = tf.identity(W_rho, name= "W_rho")
+        self.W_mu = tf.identity(W_mu, name="W_mu")
+        self.W_rho = tf.identity(W_rho, name="W_rho")
 
         if b is None:
             self.b = None
         else:
-            self.b_mu = self.add_param(b, (num_units,), name="b_mu", regularizable=False)
-            self.b_rho = self.add_param(b, (num_units,), name="b_rho", regularizable=False)
+            self.b_mu = self.add_param(
+                b, (num_units,), name="b_mu", regularizable=False)
+            self.b_rho = self.add_param(
+                b, (num_units,), name="b_rho", regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -472,7 +489,7 @@ class LatentLayer(Layer):
         batch_size = input.get_shape()[0].value
 
         Z_mu, Z_sig = self.get_dparams_for(input, **kwargs)
-        latent = Z_mu + Z_sig * tf.random_normal([batch_size,self.num_units])
+        latent = Z_mu + Z_sig * tf.random_normal([batch_size, self.num_units])
         return latent
 
     def get_dparams_for(self, input, **kwargs):
@@ -486,8 +503,8 @@ class LatentLayer(Layer):
             # batch of feature vectors.
             input = tf.reshape(input, tf.pack([tf.shape(input)[0], -1]))
 
-        Z_mu = tf.matmul(input,self.W_mu) + self.b_mu
-        Z_sig = tf.log(1.0 + tf.exp(tf.matmul(input,self.W_rho) + self.b_rho))
+        Z_mu = tf.matmul(input, self.W_mu) + self.b_mu
+        Z_sig = tf.log(1.0 + tf.exp(tf.matmul(input, self.W_rho) + self.b_rho))
 
         return Z_mu, Z_sig
 
@@ -506,11 +523,13 @@ class DenseLayer(Layer):
 
         num_inputs = int(np.prod(self.input_shape[1:]))
 
-        self.W = self.add_param(W, (num_inputs, num_units), name="W", regularizer= tf.nn.l2_loss)
+        self.W = self.add_param(
+            W, (num_inputs, num_units), name="W", regularizer=tf.nn.l2_loss)
         if b is None:
             self.b = None
         else:
-            self.b = self.add_param(b, (num_units,), name="b", regularizable=False)
+            self.b = self.add_param(
+                b, (num_units,), name="b", regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -577,7 +596,8 @@ class BaseConvLayer(Layer):
             self.b = None
         else:
             if self.untie_biases:
-                biases_shape = self.output_shape[1:3] + (num_filters,)  # + self.output_shape[2:]
+                # + self.output_shape[2:]
+                biases_shape = self.output_shape[1:3] + (num_filters,)
             else:
                 biases_shape = (num_filters,)
             self.b = self.add_param(b, biases_shape, name="b",
@@ -594,7 +614,7 @@ class BaseConvLayer(Layer):
         return self.filter_size + (num_input_channels, self.num_filters)
 
     def get_output_shape_for(self, input_shape):
-	## computes incorrect value for circular convolution
+        # computes incorrect value for circular convolution
         if self.pad == 'SAME' or self.pad == 'CIRCULAR':
             pad = ('same',) * self.n
         elif self.pad == 'VALID':
@@ -619,7 +639,8 @@ class BaseConvLayer(Layer):
             # raise NotImplementedError
             activation = conved + tf.expand_dims(self.b, 0)
         else:
-            activation = conved + tf.reshape(self.b, (1, 1, 1, self.num_filters))
+            activation = conved + \
+                tf.reshape(self.b, (1, 1, 1, self.num_filters))
 
         return self.nonlinearity(activation)
 
@@ -644,20 +665,20 @@ class BaseConvLayer(Layer):
                                   "use a subclass such as Conv2DLayer.")
 
 
-#class Conv2DLayer(BaseConvLayer):
-    #def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
-                 #pad="VALID", untie_biases=False,
-                 #W=XavierUniformInitializer(), b=tf.zeros_initializer,
-                 #nonlinearity=tf.nn.relu,
-                 #convolution=tf.nn.conv2d, **kwargs):
-        #super(Conv2DLayer, self).__init__(incoming=incoming, num_filters=num_filters, filter_size=filter_size,
-                                          #stride=stride, pad=pad, untie_biases=untie_biases, W=W, b=b,
-                                          #nonlinearity=nonlinearity, n=2, **kwargs)
+# class Conv2DLayer(BaseConvLayer):
+    # def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
+        # pad="VALID", untie_biases=False,
+        # W=XavierUniformInitializer(), b=tf.zeros_initializer,
+        # nonlinearity=tf.nn.relu,
+        # convolution=tf.nn.conv2d, **kwargs):
+        # super(Conv2DLayer, self).__init__(incoming=incoming, num_filters=num_filters, filter_size=filter_size,
+        #stride=stride, pad=pad, untie_biases=untie_biases, W=W, b=b,
+        # nonlinearity=nonlinearity, n=2, **kwargs)
         #self.convolution = convolution
 
-    #def convolve(self, input, **kwargs):
+    # def convolve(self, input, **kwargs):
         #conved = self.convolution(input, self.W, strides=(1,) + self.stride + (1,), padding=self.pad)
-        #return conved
+        # return conved
 
 class ConvNDLayer(BaseConvLayer):
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
@@ -668,12 +689,13 @@ class ConvNDLayer(BaseConvLayer):
                                           stride=stride, pad=pad, untie_biases=untie_biases, W=W, b=b,
                                           nonlinearity=nonlinearity, n=n, **kwargs)
         if pad == "CIRCULAR":
-	    self.convolution = self.circular_convolution
-	else:
-	    self.convolution = tf.nn.conv2d
+            self.convolution = self.circular_convolution
+        else:
+            self.convolution = tf.nn.conv2d
 
     def convolve(self, input, **kwargs):
-        conved = self.convolution(input, self.W, strides=(1,) + self.stride + (1,), padding=self.pad)
+        conved = self.convolution(input, self.W, strides=(
+            1,) + self.stride + (1,), padding=self.pad)
         return conved
 
     @staticmethod
@@ -683,33 +705,38 @@ class ConvNDLayer(BaseConvLayer):
             v: a 1-D `Tensor` (vector)
             k: a 1-D `Tensor` (kernel)
         """
-	v_n, v_h, v_w, v_c = map(lambda x : x.value, v.get_shape())
-	k_h, k_w, k_cin, k_cout = map(lambda x : x.value, k.get_shape())
-	size = v_w
-	kernel_size = k_w
-	kernel_stride = kwargs["strides"][2]
-        kernel_shift = int(math.floor(kernel_size/2.0))
+        v_n, v_h, v_w, v_c = map(lambda x: x.value, v.get_shape())
+        k_h, k_w, k_cin, k_cout = map(lambda x: x.value, k.get_shape())
+        size = v_w
+        kernel_size = k_w
+        kernel_stride = kwargs["strides"][2]
+        kernel_shift = int(math.floor(kernel_size / 2.0))
 
-	def column_lookup(A,idx):
-	    """ transpose is slow :( """
-	    B = tf.transpose(A,[2,1,0,3])
-	    G = tf.gather(B,idx)
-	    return tf.transpose(G,[2,1,0,3])
+        def column_lookup(A, idx):
+            """ transpose is slow :( """
+            B = tf.transpose(A, [2, 1, 0, 3])
+            G = tf.gather(B, idx)
+            return tf.transpose(G, [2, 1, 0, 3])
 
         def loop(idx):
-            if idx < 0: return size + idx
-            if idx >= size : return idx - size
-            else: return idx
+            if idx < 0:
+                return size + idx
+            if idx >= size:
+                return idx - size
+            else:
+                return idx
 
         kernels = []
         for i in xrange(size):
-            indices = [loop(i+j) for j in xrange(kernel_size - kernel_shift, -kernel_shift, -1)]
-	    assert len(indices) == kernel_size
-	    v_ = column_lookup(v,indices)
-	    kernels.append(tf.nn.conv2d(v_,k,(1,1,1,1),"VALID"))
+            indices = [loop(i + j) for j in xrange(kernel_size -
+                                                   kernel_shift, -kernel_shift, -1)]
+            assert len(indices) == kernel_size
+            v_ = column_lookup(v, indices)
+            kernels.append(tf.nn.conv2d(v_, k, (1, 1, 1, 1), "VALID"))
 
-	out = tf.concat(2,kernels)
-	return out
+        out = tf.concat(2, kernels)
+        return out
+
 
 def pool_output_length(input_length, pool_size, stride, pad):
     if input_length is None or pool_size is None:
@@ -800,7 +827,7 @@ class SpatialExpectedSoftmaxLayer(Layer):
         return (input_shape[0], input_shape[-1] * 2)
 
     def get_output_for(self, input, **kwargs):
-        return spatial_expected_softmax(input)#, self.temp)
+        return spatial_expected_softmax(input)  # , self.temp)
         # max_ = tf.reduce_max(input, reduction_indices=[1, 2], keep_dims=True)
         # exp = tf.exp(input - max_) + 1e-5
 
@@ -817,7 +844,8 @@ class SpatialExpectedSoftmaxLayer(Layer):
         #     val = tf.reduce_sum(e * lin, [1, 2]) / (tf.reduce_sum(e, [1, 2]))
         #     vals.append(tf.expand_dims(val, 2))
         #
-        # return tf.reshape(tf.concat(2, vals), [-1, input.get_shape()[-1].value * 2])
+        # return tf.reshape(tf.concat(2, vals), [-1,
+        # input.get_shape()[-1].value * 2])
 
         # import ipdb; ipdb.set_trace()
 
@@ -1032,8 +1060,9 @@ class SliceLayer(Layer):
             axis += ndims
         if isinstance(self.slice, int) and self.slice < 0:
             return tf.reverse(input, [False] * self.axis + [True] + [False] * (ndims - axis - 1))[
-                (slice(None),) * axis + (-1 - self.slice,) + (slice(None),) * (ndims - axis - 1)
-                ]
+                (slice(None),) * axis + (-1 - self.slice,) +
+                (slice(None),) * (ndims - axis - 1)
+            ]
         # import ipdb; ipdb.set_trace()
         return input[(slice(None),) * axis + (self.slice,) + (slice(None),) * (ndims - axis - 1)]
 
@@ -1156,17 +1185,26 @@ class GRULayer(Layer):
         self.h0 = self.add_param(hidden_init, (num_units,), name="h0", trainable=hidden_init_trainable,
                                  regularizable=False)
         # Weights for the reset gate
-        self.W_xr = self.add_param(W_x_init, (input_dim, num_units), name="W_xr")
-        self.W_hr = self.add_param(W_h_init, (num_units, num_units), name="W_hr")
-        self.b_r = self.add_param(b_init, (num_units,), name="b_r", regularizable=False)
+        self.W_xr = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xr")
+        self.W_hr = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hr")
+        self.b_r = self.add_param(
+            b_init, (num_units,), name="b_r", regularizable=False)
         # Weights for the update gate
-        self.W_xu = self.add_param(W_x_init, (input_dim, num_units), name="W_xu")
-        self.W_hu = self.add_param(W_h_init, (num_units, num_units), name="W_hu")
-        self.b_u = self.add_param(b_init, (num_units,), name="b_u", regularizable=False)
+        self.W_xu = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xu")
+        self.W_hu = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hu")
+        self.b_u = self.add_param(
+            b_init, (num_units,), name="b_u", regularizable=False)
         # Weights for the cell gate
-        self.W_xc = self.add_param(W_x_init, (input_dim, num_units), name="W_xc")
-        self.W_hc = self.add_param(W_h_init, (num_units, num_units), name="W_hc")
-        self.b_c = self.add_param(b_init, (num_units,), name="b_c", regularizable=False)
+        self.W_xc = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xc")
+        self.W_hc = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hc")
+        self.b_c = self.add_param(
+            b_init, (num_units,), name="b_c", regularizable=False)
 
         self.W_x_ruc = tf.concat(1, [self.W_xr, self.W_xu, self.W_xc])
         self.W_h_ruc = tf.concat(1, [self.W_hr, self.W_hu, self.W_hc])
@@ -1180,8 +1218,10 @@ class GRULayer(Layer):
         self.norm_params = dict()
 
         # pre-run the step method to initialize the normalization parameters
-        h_dummy = tf.placeholder(dtype=tf.float32, shape=(None, num_units), name="h_dummy")
-        x_dummy = tf.placeholder(dtype=tf.float32, shape=(None, input_dim), name="x_dummy")
+        h_dummy = tf.placeholder(dtype=tf.float32, shape=(
+            None, num_units), name="h_dummy")
+        x_dummy = tf.placeholder(dtype=tf.float32, shape=(
+            None, input_dim), name="x_dummy")
         self.step(h_dummy, x_dummy)
 
     def step(self, hprev, x):
@@ -1199,7 +1239,8 @@ class GRULayer(Layer):
             h = (1 - u) * hprev + u * c
             return h
         else:
-            xb_ruc = tf.matmul(x, self.W_x_ruc) + tf.reshape(self.b_ruc, (1, -1))
+            xb_ruc = tf.matmul(x, self.W_x_ruc) + \
+                tf.reshape(self.b_ruc, (1, -1))
             h_ruc = tf.matmul(hprev, self.W_h_ruc)
             xb_r, xb_u, xb_c = tf.split(split_dim=1, num_split=3, value=xb_ruc)
             h_r, h_u, h_c = tf.split(split_dim=1, num_split=3, value=h_ruc)
@@ -1270,22 +1311,27 @@ class TfGRULayer(Layer):
                  **kwargs):
         assert len(incoming.output_shape) == 3
         input_dim = incoming.shape[2]
-        gru = tf.nn.rnn_cell.GRUCell(num_units=num_units, activation=hidden_nonlinearity)
+        gru = tf.nn.rnn_cell.GRUCell(
+            num_units=num_units, activation=hidden_nonlinearity)
         self.num_units = num_units
         self.horizon = horizon
         self.gru = gru
         self.hidden_nonlinearity = hidden_nonlinearity
         Layer.__init__(self, incoming=incoming, **kwargs)
         # dummy input variable
-        input_dummy = tf.placeholder(tf.float32, (None, input_dim), "input_dummy")
-        hidden_dummy = tf.placeholder(tf.float32, (None, num_units), "hidden_dummy")
+        input_dummy = tf.placeholder(
+            tf.float32, (None, input_dim), "input_dummy")
+        hidden_dummy = tf.placeholder(
+            tf.float32, (None, num_units), "hidden_dummy")
 
         with tf.variable_scope(self.name) as vs:
             gru(input_dummy, hidden_dummy, scope=vs)
             vs.reuse_variables()
             self.scope = vs
-            all_vars = [v for v in tf.all_variables() if v.name.startswith(vs.name)]
-            trainable_vars = [v for v in tf.trainable_variables() if v.name.startswith(vs.name)]
+            all_vars = [v for v in tf.all_variables(
+            ) if v.name.startswith(vs.name)]
+            trainable_vars = [
+                v for v in tf.trainable_variables() if v.name.startswith(vs.name)]
 
         for var in trainable_vars:
             self.add_param(spec=var, shape=None, name=None, trainable=True)
@@ -1308,7 +1354,8 @@ class TfGRULayer(Layer):
         if self.horizon is not None:
             outputs = []
             for idx in range(self.horizon):
-                output, state = self.gru(input[:, idx, :], state, scope=self.scope)  # self.name)
+                output, state = self.gru(
+                    input[:, idx, :], state, scope=self.scope)  # self.name)
                 outputs.append(tf.expand_dims(output, 1))
             outputs = tf.concat(1, outputs)
             return outputs
@@ -1392,21 +1439,33 @@ class PseudoLSTMLayer(Layer):
         self.c0 = self.add_param(cell_init, (num_units,), name="c0", trainable=cell_init_trainable,
                                  regularizable=False)
         # Weights for the incoming gate
-        self.W_xi = self.add_param(W_x_init, (input_dim, num_units), name="W_xi")
-        self.W_hi = self.add_param(W_h_init, (num_units, num_units), name="W_hi")
-        self.b_i = self.add_param(b_init, (num_units,), name="b_i", regularizable=False)
+        self.W_xi = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xi")
+        self.W_hi = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hi")
+        self.b_i = self.add_param(
+            b_init, (num_units,), name="b_i", regularizable=False)
         # Weights for the forget gate
-        self.W_xf = self.add_param(W_x_init, (input_dim, num_units), name="W_xf")
-        self.W_hf = self.add_param(W_h_init, (num_units, num_units), name="W_hf")
-        self.b_f = self.add_param(b_init, (num_units,), name="b_f", regularizable=False)
+        self.W_xf = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xf")
+        self.W_hf = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hf")
+        self.b_f = self.add_param(
+            b_init, (num_units,), name="b_f", regularizable=False)
         # Weights for the out gate
-        self.W_xo = self.add_param(W_x_init, (input_dim, num_units), name="W_xo")
-        self.W_ho = self.add_param(W_h_init, (num_units, num_units), name="W_ho")
-        self.b_o = self.add_param(b_init, (num_units,), name="b_o", regularizable=False)
+        self.W_xo = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xo")
+        self.W_ho = self.add_param(
+            W_h_init, (num_units, num_units), name="W_ho")
+        self.b_o = self.add_param(
+            b_init, (num_units,), name="b_o", regularizable=False)
         # Weights for the cell gate
-        self.W_xc = self.add_param(W_x_init, (input_dim, num_units), name="W_xc")
-        self.W_hc = self.add_param(W_h_init, (num_units, num_units), name="W_hc")
-        self.b_c = self.add_param(b_init, (num_units,), name="b_c", regularizable=False)
+        self.W_xc = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xc")
+        self.W_hc = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hc")
+        self.b_c = self.add_param(
+            b_init, (num_units,), name="b_c", regularizable=False)
 
         self.gate_nonlinearity = gate_nonlinearity
         self.num_units = num_units
@@ -1562,39 +1621,56 @@ class LSTMLayer(Layer):
         self.c0 = self.add_param(cell_init, (num_units,), name="c0", trainable=cell_init_trainable,
                                  regularizable=False)
         # Weights for the incoming gate
-        self.W_xi = self.add_param(W_x_init, (input_dim, num_units), name="W_xi")
-        self.W_hi = self.add_param(W_h_init, (num_units, num_units), name="W_hi")
+        self.W_xi = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xi")
+        self.W_hi = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hi")
         if use_peepholes:
             self.w_ci = self.add_param(w_init, (num_units,), name="w_ci")
-        self.b_i = self.add_param(b_init, (num_units,), name="b_i", regularizable=False)
+        self.b_i = self.add_param(
+            b_init, (num_units,), name="b_i", regularizable=False)
         # Weights for the forget gate
-        self.W_xf = self.add_param(W_x_init, (input_dim, num_units), name="W_xf")
-        self.W_hf = self.add_param(W_h_init, (num_units, num_units), name="W_hf")
+        self.W_xf = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xf")
+        self.W_hf = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hf")
         if use_peepholes:
             self.w_cf = self.add_param(w_init, (num_units,), name="w_cf")
-        self.b_f = self.add_param(b_init, (num_units,), name="b_f", regularizable=False)
+        self.b_f = self.add_param(
+            b_init, (num_units,), name="b_f", regularizable=False)
         # Weights for the cell gate
-        self.W_xc = self.add_param(W_x_init, (input_dim, num_units), name="W_xc")
-        self.W_hc = self.add_param(W_h_init, (num_units, num_units), name="W_hc")
-        self.b_c = self.add_param(b_init, (num_units,), name="b_c", regularizable=False)
+        self.W_xc = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xc")
+        self.W_hc = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hc")
+        self.b_c = self.add_param(
+            b_init, (num_units,), name="b_c", regularizable=False)
         # Weights for the reset gate
-        self.W_xr = self.add_param(W_x_init, (input_dim, num_units), name="W_xr")
-        self.W_hr = self.add_param(W_h_init, (num_units, num_units), name="W_hr")
-        self.b_r = self.add_param(b_init, (num_units,), name="b_r", regularizable=False)
+        self.W_xr = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xr")
+        self.W_hr = self.add_param(
+            W_h_init, (num_units, num_units), name="W_hr")
+        self.b_r = self.add_param(
+            b_init, (num_units,), name="b_r", regularizable=False)
         # Weights for the out gate
-        self.W_xo = self.add_param(W_x_init, (input_dim, num_units), name="W_xo")
-        self.W_ho = self.add_param(W_h_init, (num_units, num_units), name="W_ho")
+        self.W_xo = self.add_param(
+            W_x_init, (input_dim, num_units), name="W_xo")
+        self.W_ho = self.add_param(
+            W_h_init, (num_units, num_units), name="W_ho")
         if use_peepholes:
             self.w_co = self.add_param(w_init, (num_units,), name="w_co")
-        self.b_o = self.add_param(b_init, (num_units,), name="b_o", regularizable=False)
+        self.b_o = self.add_param(
+            b_init, (num_units,), name="b_o", regularizable=False)
         self.gate_nonlinearity = gate_nonlinearity
         self.num_units = num_units
         self.nonlinearity = hidden_nonlinearity
         self.forget_bias = forget_bias
         self.use_peepholes = use_peepholes
 
-        self.W_x_ifco = tf.concat(1, [self.W_xi, self.W_xf, self.W_xc, self.W_xo])
-        self.W_h_ifco = tf.concat(1, [self.W_hi, self.W_hf, self.W_hc, self.W_ho])
+        self.W_x_ifco = tf.concat(
+            1, [self.W_xi, self.W_xf, self.W_xc, self.W_xo])
+        self.W_h_ifco = tf.concat(
+            1, [self.W_hi, self.W_hf, self.W_hc, self.W_ho])
 
         if use_peepholes:
             self.w_c_ifo = tf.concat(0, [self.w_ci, self.w_cf, self.w_co])
@@ -1624,10 +1700,13 @@ class LSTMLayer(Layer):
         h_i, h_f, h_c, h_o = tf.split(split_dim=1, num_split=4, value=h_ifco)
 
         if self.use_peepholes:
-            i = self.gate_nonlinearity(x_i + h_i + self.w_ci * cprev + self.b_i)
-            f = self.gate_nonlinearity(x_f + h_f + self.w_cf * cprev + self.b_f + self.forget_bias)
+            i = self.gate_nonlinearity(
+                x_i + h_i + self.w_ci * cprev + self.b_i)
+            f = self.gate_nonlinearity(
+                x_f + h_f + self.w_cf * cprev + self.b_f + self.forget_bias)
 
-            o = self.gate_nonlinearity(x_o + h_o + self.w_co * cprev + self.b_o)
+            o = self.gate_nonlinearity(
+                x_o + h_o + self.w_co * cprev + self.b_o)
         else:
             i = self.gate_nonlinearity(x_i + h_i + self.b_i)
             f = self.gate_nonlinearity(x_f + h_f + self.b_f + self.forget_bias)
@@ -1715,16 +1794,21 @@ class TfBasicLSTMLayer(Layer):
         self.hidden_nonlinearity = hidden_nonlinearity
         Layer.__init__(self, incoming=incoming, **kwargs)
         # dummy input variable
-        input_dummy = tf.placeholder(tf.float32, (None, input_dim), "input_dummy")
-        hidden_dummy = tf.placeholder(tf.float32, (None, num_units), "hidden_dummy")
-        cell_dummy = tf.placeholder(tf.float32, (None, num_units), "cell_dummy")
+        input_dummy = tf.placeholder(
+            tf.float32, (None, input_dim), "input_dummy")
+        hidden_dummy = tf.placeholder(
+            tf.float32, (None, num_units), "hidden_dummy")
+        cell_dummy = tf.placeholder(
+            tf.float32, (None, num_units), "cell_dummy")
 
         with tf.variable_scope(self.name) as vs:
             lstm(input_dummy, (cell_dummy, hidden_dummy), scope=vs)
             vs.reuse_variables()
             self.scope = vs
-            all_vars = [v for v in tf.all_variables() if v.name.startswith(vs.name)]
-            trainable_vars = [v for v in tf.trainable_variables() if v.name.startswith(vs.name)]
+            all_vars = [v for v in tf.all_variables(
+            ) if v.name.startswith(vs.name)]
+            trainable_vars = [
+                v for v in tf.trainable_variables() if v.name.startswith(vs.name)]
 
         for var in trainable_vars:
             self.add_param(spec=var, shape=None, name=None, trainable=True)
@@ -1760,7 +1844,8 @@ class TfBasicLSTMLayer(Layer):
         if self.horizon is not None:
             outputs = []
             for idx in range(self.horizon):
-                output, state = self.lstm(input[:, idx, :], state, scope=self.scope)  # self.name)
+                output, state = self.lstm(
+                    input[:, idx, :], state, scope=self.scope)  # self.name)
                 outputs.append(tf.expand_dims(output, 1))
             outputs = tf.concat(1, outputs)
             return outputs
@@ -1868,11 +1953,13 @@ class BatchNormLayer(Layer):
         params_shape = input_shape[-1:]
 
         if center:
-            self.beta = self.add_param(beta, shape=params_shape, name='beta', trainable=True, regularizable=False)
+            self.beta = self.add_param(
+                beta, shape=params_shape, name='beta', trainable=True, regularizable=False)
         else:
             self.beta = None
         if scale:
-            self.gamma = self.add_param(gamma, shape=params_shape, name='gamma', trainable=True, regularizable=True)
+            self.gamma = self.add_param(
+                gamma, shape=params_shape, name='gamma', trainable=True, regularizable=True)
         else:
             self.gamma = None
 
@@ -1885,7 +1972,8 @@ class BatchNormLayer(Layer):
     def get_output_for(self, input, phase='train', **kwargs):
         if phase == 'train':
             # Calculate the moments based on the individual batch.
-            mean, variance = tf.nn.moments(input, self.axis, shift=self.moving_mean)
+            mean, variance = tf.nn.moments(
+                input, self.axis, shift=self.moving_mean)
             # Update the moving_mean and moving_variance moments.
             update_moving_mean = moving_averages.assign_moving_average(
                 self.moving_mean, mean, self.decay)
@@ -1923,7 +2011,8 @@ def batch_norm(layer, **kwargs):
     layers.append(layer)
     if nonlinearity is not None:
         nonlin_name = bn_name and bn_name + '_nonlin'
-        layer = NonlinearityLayer(layer, nonlinearity=nonlinearity, name=nonlin_name)
+        layer = NonlinearityLayer(
+            layer, nonlinearity=nonlinearity, name=nonlin_name)
         layers.append(layer)
     return layers
 
@@ -1967,7 +2056,7 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
         for input_layer in all_outputs:
             all_outputs[input_layer] = tf.convert_to_tensor(inputs)
 
-    #for layer, tensor in all_outputs.iteritems():
+    # for layer, tensor in all_outputs.iteritems():
     #	assert layer.input_layer.output_shape == tuple(map(lambda x: x.value, all_outputs[layer.input_layer].get_shape()))
     # update layer-to-expression mapping by propagating the inputs
     for layer in all_layers:

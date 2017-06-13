@@ -14,6 +14,8 @@ from rllab.misc import autoargs
 from rllab.misc.overrides import overrides
 
 BIG = 1e6
+
+
 class Box2DEnv(Env):
 
     @autoargs.arg("frame_skip", type=int,
@@ -98,8 +100,10 @@ class Box2DEnv(Env):
     @property
     @overrides
     def action_space(self):
-        lb = np.array([control.ctrllimit[0] for control in self.extra_data.controls])
-        ub = np.array([control.ctrllimit[1] for control in self.extra_data.controls])
+        lb = np.array([control.ctrllimit[0]
+                       for control in self.extra_data.controls])
+        ub = np.array([control.ctrllimit[1]
+                       for control in self.extra_data.controls])
         return spaces.Box(lb, ub)
 
     @property
@@ -110,7 +114,7 @@ class Box2DEnv(Env):
         else:
             d = len(self.extra_data.states)
         ub = BIG * np.ones(d)
-        return spaces.Box(ub*-1, ub)
+        return spaces.Box(ub * -1, ub)
 
     @property
     def action_bounds(self):
@@ -357,4 +361,3 @@ class Box2DEnv(Env):
 
     def action_from_keys(self, keys):
         raise NotImplementedError
-

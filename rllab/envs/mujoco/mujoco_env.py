@@ -99,9 +99,9 @@ class MujocoEnv(Env):
     def reset_mujoco(self, init_state=None):
         if init_state is None:
             self.model.data.qpos = self.init_qpos + \
-                                   np.random.normal(size=self.init_qpos.shape) * 0.01
+                np.random.normal(size=self.init_qpos.shape) * 0.01
             self.model.data.qvel = self.init_qvel + \
-                                   np.random.normal(size=self.init_qvel.shape) * 0.1
+                np.random.normal(size=self.init_qvel.shape) * 0.1
             self.model.data.qacc = self.init_qacc
             self.model.data.ctrl = self.init_ctrl
         else:
@@ -165,7 +165,7 @@ class MujocoEnv(Env):
     def inject_action_noise(self, action):
         # generate action noise
         noise = self.action_noise * \
-                np.random.normal(size=action.shape)
+            np.random.normal(size=action.shape)
         # rescale the noise to make it proportional to the action bounds
         lb, ub = self.action_bounds
         noise = 0.5 * (ub - lb) * noise
