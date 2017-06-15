@@ -15,9 +15,11 @@ An ego vehicle trained through Generative Adversarial Imitation Learning (blue) 
 ForwardNets.jl ([nextgen branch](https://github.com/tawheeler/ForwardNets.jl/tree/nextgen))
 
 Note: This repository is not up to date with recent changes to Julia packages. We recommend using the following commits of these packages: \\
-[AutomotiveDrivingModels.jl](https://github.com/tawheeler/AutomotiveDrivingModels.jl) (commit 0bf7619) \\
-[AutoViz.jl](https://github.com/sisl/autoviz.jl) (commit 274dd08) \\
-[NGSIM.jl](https://github.com/sisl/NGSIM.jl) (commit f16d684) \\
+[AutomotiveDrivingModels.jl](https://github.com/tawheeler/AutomotiveDrivingModels.jl) (commit 0bf7619)
+
+[AutoViz.jl](https://github.com/sisl/autoviz.jl) (commit 274dd08)
+
+[NGSIM.jl](https://github.com/sisl/NGSIM.jl) (commit f16d684)
 
 # References
 Jonathan Ho, Stefano Ermon. "[Generative Adversarial Imitation Learning](https://cs.stanford.edu/~ermon/papers/imitation_nips2016_main.pdf)". _Advances in Neural Information Processing Systems (NIPS), 2016_
