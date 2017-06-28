@@ -215,7 +215,6 @@ function gen_simparams(trajdata_indeces::Vector,
     segments = get_train_segments(trajdatas, nsteps)
     toc()
 
-    println("HIT THIS THING")
     SimParams(trajdatas, segments, col_weight, off_weight, rev_weight, jrk_weight, acc_weight, cen_weight, ome_weight,
               use_debug_reward, use_playback_reactive, model_all, playback_reactive_threshold_brake,
               nsimstates, prime_history, nsteps, ego_action_type, extractor)
