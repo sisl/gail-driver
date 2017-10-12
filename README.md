@@ -12,6 +12,9 @@ python scripts/train_gail_model.py
 An ego vehicle trained through Generative Adversarial Imitation Learning (blue) navigating a congested highway scene.
 
 # Requirements
+
+Julia 0.5
+
 ForwardNets.jl ([nextgen branch](https://github.com/tawheeler/ForwardNets.jl/tree/nextgen))
 
 AutomotiveDrivingModels.jl ([gail branch](https://github.com/akuefler/AutomotiveDrivingModels.jl))
